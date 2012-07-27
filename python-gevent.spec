@@ -1,18 +1,18 @@
 %define     module  gevent
-Summary:    A coroutine-based Python networking library
-Name:       python-%{module}
-Version:    0.13.6
-Release:    1
-License:    MIT
-Group:      Development/Languages
-URL:        http://www.gevent.org/
-Source0:    http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
+Summary:	A coroutine-based Python networking library
+Name:		python-%{module}
+Version:	0.13.6
+Release:	1
+License:	MIT
+Group:		Development/Languages
+URL:		http://www.gevent.org/
+Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
 # Source0-md5:  7c836ce2315d44ba0af6134efbcd38c9
-BuildRequires:  libevent-devel >= 1.4.0
-BuildRequires:  python-devel
-BuildRequires:  rpm-pythonprov
-Requires:   python-greenlet
-BuildRoot:  %{tmpdir}/%{name}-%{version}-root-%(id -u -n)
+BuildRequires:	libevent-devel >= 1.4.0
+BuildRequires:	python-devel
+BuildRequires:	rpm-pythonprov
+Requires:	python-greenlet
+BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
 gevent is a coroutine-based Python networking library that uses
@@ -50,6 +50,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(644,root,root,755)
 %doc LICENSE README.rst
+%dir %{py_sitedir}/%{module}
 %{py_sitedir}/%{module}/*.py[co]
 %attr(755,root,root) %{py_sitedir}/%{module}/core.so
 %if "%{py_ver}" > "2.4"
