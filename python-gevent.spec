@@ -47,6 +47,12 @@ CC="%{__cc}" \
 CFLAGS="%{rpmcflags}" \
 %{__python} setup.py build
 
+%if %{with tests}
+cd greentest
+PYTHONPATH=.. python testrunner.py --expected ../known_failures-merged.txt
+cd ..
+%endif
+
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install \
@@ -55,12 +61,6 @@ rm -rf $RPM_BUILD_ROOT
     --root=$RPM_BUILD_ROOT
 
 %py_postclean
-
-%if %{with tests}
-cd greentest
-PYTHONPATH=.. python testrunner.py --expected ../known_failures-merged.txt
-cd ..
-%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
