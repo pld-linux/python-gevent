@@ -1,3 +1,11 @@
+
+# TODO:
+#	- investigate some of the failing tests
+#	  (now excluded via known_failures-pld.txt)
+
+# Conditional build:
+%bcond_without	tests	# do not run tests
+
 %define     module  gevent
 Summary:	A coroutine-based Python networking library
 Name:		python-%{module}
@@ -8,6 +16,7 @@ Group:		Development/Languages
 URL:		http://www.gevent.org/
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
 # Source0-md5:	33aef51a06268f5903fea378e1388e4d
+Source1:	known_failures-pld.txt
 BuildRequires:	libevent-devel >= 1.4.0
 BuildRequires:	python-devel
 BuildRequires:	rpm-pythonprov
@@ -30,6 +39,8 @@ Features include:
 %prep
 %setup -q -n %{module}-%{version}
 
+cat known_failures.txt %{SOURCE1} > known_failures-merged.txt
+
 %build
 CC="%{__cc}" \
 CFLAGS="%{rpmcflags}" \
@@ -43,6 +54,12 @@ rm -rf $RPM_BUILD_ROOT
     --root=$RPM_BUILD_ROOT
 
 %py_postclean
+
+%if %{with tests}
+cd greentest
+PYTHONPATH=.. python testrunner.py --expected ../known_failures-merged.txt
+cd ..
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
