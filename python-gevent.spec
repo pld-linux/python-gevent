@@ -19,6 +19,7 @@ Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.ta
 Source1:	known_failures-pld.txt
 BuildRequires:	libevent-devel >= 1.4.0
 BuildRequires:	python-devel
+%{?with_tests:BuildRequires: python-test}
 BuildRequires:	rpm-pythonprov
 Requires:	python-greenlet
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
