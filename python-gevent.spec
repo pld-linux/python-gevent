@@ -70,6 +70,9 @@ rm -rf $RPM_BUILD_ROOT
 %doc LICENSE README.rst
 %dir %{py_sitedir}/%{module}
 %{py_sitedir}/%{module}/*.py[co]
+%attr(755,root,root) %{py_sitedir}/%{module}/_semaphore.so
+%attr(755,root,root) %{py_sitedir}/%{module}/_util.so
+%attr(755,root,root) %{py_sitedir}/%{module}/ares.so
 %attr(755,root,root) %{py_sitedir}/%{module}/core.so
 %if "%{py_ver}" > "2.4"
 %{py_sitedir}/%{module}-%{version}-py%{py_ver}.egg-info
