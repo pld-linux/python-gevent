@@ -1,13 +1,13 @@
 %define     module  gevent
 Summary:	A coroutine-based Python networking library
 Name:		python-%{module}
-Version:	0.13.6
+Version:	1.0
 Release:	1
 License:	MIT
 Group:		Development/Languages
 URL:		http://www.gevent.org/
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:  7c836ce2315d44ba0af6134efbcd38c9
+# Source0-md5:	33aef51a06268f5903fea378e1388e4d
 BuildRequires:	libevent-devel >= 1.4.0
 BuildRequires:	python-devel
 BuildRequires:	rpm-pythonprov
