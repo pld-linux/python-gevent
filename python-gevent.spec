@@ -1,11 +1,14 @@
 
 # TODO:
-#	- investigate some of the failing tests
+#	- test__core_stat.py fails on 32-bit builds with system libev
+#	  investigate/fix that and enable system libev
+#
+#	- investigate some other failing tests
 #	  (now excluded via known_failures-pld.txt)
 
 # Conditional build:
 %bcond_without	tests	# do not run tests
-%bcond_without	system_libev	# build with system libev (more tests will fail)
+%bcond_with	system_libev	# build with system libev (more tests will fail)
 %bcond_without	system_c_ares	# build with system c_ares
 
 %define     module  gevent

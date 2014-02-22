@@ -15,6 +15,18 @@
 ######################################################
 # Tests which fail when building with system libev
 
+# test__core_stat.py fails on 32-bit builders when using system
+# libev
+#
+##  Watcher <stat at 0x86b078c> reacted after 0.0019 seconds (write)
+##  Watcher <stat at 0x86b078c> reacted after 0.0019 seconds (unlink)
+##  Traceback (most recent call last):
+##    File "test__core_stat.py", line 54, in <module>
+##      assert watcher.attr is None, watcher.attr
+##  AssertionError: posix.stat_result(st_mode=2001, st_ino=0L, st_dev=581509237251768320L, st_nlink=1000, st_uid=0, st_gid=0, st_size=5983298792366014472L, st_atime=1393095309, st_mtime=0, st_ctime=-1)
+#* * * -u test__core_stat.py
+
+
 # When  building with system libev the 'fileno()' method of the
 # loop object is not implemented. It seems to be used only be the
 # test code, though.
