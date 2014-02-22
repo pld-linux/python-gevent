@@ -13,6 +13,27 @@
 * * * -u test__pywsgi.py
 
 ######################################################
+# Tests which fail when building with system libev
+
+# When  building with system libev the 'fileno()' method of the
+# loop object is not implemented. It seems to be used only be the
+# test code, though.
+
+# | /usr/bin/python -u test__destroy.py
+#   Traceback (most recent call last):
+#     File "test__destroy.py", line 14, in <module>
+#       assert saved_loop.fileno() is None, saved_loop
+#   AttributeError: 'gevent.core.loop' object has no attribute 'fileno'
+* * * -u test__destroy.py
+
+# | /usr/bin/python -u test_close_backend_fd.py
+#   Traceback (most recent call last):
+#     File "test_close_backend_fd.py", line 11, in <module>
+#       fileno = hub.loop.fileno()
+#   AttributeError: 'gevent.core.loop' object has no attribute 'fileno'
+* * * -u test_close_backend_fd.py
+
+######################################################
 # Tests which may fail on our builders
 
 # attempts to bind to port 53
