@@ -20,9 +20,10 @@ Source1:	known_failures-pld.txt
 BuildRequires:	libevent-devel >= 1.4.0
 BuildRequires:	python-devel
 %if %{with tests}
-BuildRequires: python-greenlet >= 0.3.2
-BuildRequires: python-test
-BuildRequires: python-devel-src
+BuildRequires:	python-greenlet >= 0.3.2
+BuildRequires:	python-test
+BuildRequires:	python-devel-src
+BuildRequires:	rpm-build-macros >= 1.688
 %endif
 BuildRequires:	rpm-pythonprov
 Requires:	python-greenlet >= 0.3.2

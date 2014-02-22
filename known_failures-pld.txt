@@ -15,10 +15,6 @@
 ######################################################
 # Tests which may fail on our builders
 
-# uses network, fragile to proxy settings
-* * * -u -m monkey_test test_urllib2_localnet.py
-* * * -u -m monkey_test --Event test_urllib2_localnet.py
-
 # depends on external URL accessibility
 * * * -u -m monkey_test test_urllib2net.py
 * * * -u -m monkey_test --Event test_urllib2net.py
@@ -26,9 +22,6 @@
 # requires webpy, not in PLD
 # has expectations on local TCP ports availability
 * * * -u test___example_servers.py
-
-# fragile to local proxy settings
-* * * -u test__greenness.py
 
 #    File "test__socket.py", line 140, in test_sendall_timeout
 #      self.assertRaises(self.TIMEOUT_ERROR, client.sendall, data_sent)
