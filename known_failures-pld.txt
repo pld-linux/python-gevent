@@ -15,6 +15,12 @@
 ######################################################
 # Tests which may fail on our builders
 
+# attempts to bind to port 53
+* * * -u test_ares_timeout.py
+
+# depends on external service
+* * * -u test__socket_ssl.py
+
 # depends on external URL accessibility
 * * * -u -m monkey_test test_urllib2net.py
 * * * -u -m monkey_test --Event test_urllib2net.py
