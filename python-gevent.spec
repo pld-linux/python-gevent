@@ -22,8 +22,8 @@ URL:		http://www.gevent.org/
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
 # Source0-md5:	33aef51a06268f5903fea378e1388e4d
 Source1:	known_failures-pld.txt
-%{?with_system_libev:BuildRequires:	c-ares-devel >= 1.10.0}
-%{?with_system_c_ares:BuildRequires:	libev-devel >= 4.11}
+%{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
+%{?with_system_libev:BuildRequires:	libev-devel >= 4.11}
 #BuildRequires:	python-Cython
 BuildRequires:	python-devel
 %if %{with tests}
