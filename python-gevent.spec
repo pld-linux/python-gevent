@@ -1,5 +1,8 @@
 
 # TODO:
+#	- SSL Broken with python 2.7.9
+#	  https://github.com/gevent/gevent/issues/477
+#	
 #	- test__core_stat.py fails on 32-bit builds with system libev
 #	  investigate/fix that and enable system libev
 #
@@ -14,13 +17,13 @@
 %define     module  gevent
 Summary:	A coroutine-based Python networking library
 Name:		python-%{module}
-Version:	1.0
-Release:	2
+Version:	1.0.1
+Release:	1
 License:	MIT
 Group:		Development/Languages
 URL:		http://www.gevent.org/
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	33aef51a06268f5903fea378e1388e4d
+# Source0-md5:	7b952591d1a0174d6eb6ac47bd975ab6
 Source1:	known_failures-pld.txt
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.11}
@@ -47,12 +50,13 @@ Features include:
 - Cooperative sockets with SSL support.
 - DNS queries performed through c-ares or a threadpool.
 - Ability to use standard library and 3rd party modules written for
-  standard blo cking sockets
+  standard blocking sockets
 
 %prep
 %setup -q -n %{module}-%{version}
-
+%if %{with tests}
 cat known_failures.txt %{SOURCE1} > known_failures-merged.txt
+%endif
 
 %build
 # when Cython-generated files are to be rebuilt
