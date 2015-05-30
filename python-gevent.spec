@@ -55,7 +55,7 @@ Features include:
 %prep
 %setup -q -n %{module}-%{version}
 %if %{with tests}
-cat known_failures.txt %{SOURCE1} > known_failures-merged.txt
+cat known_failures.py %{SOURCE1} > known_failures-merged.py
 %endif
 
 %build
@@ -71,7 +71,7 @@ CFLAGS="%{rpmcflags}" \
 
 %if %{with tests}
 cd greentest
-PYTHONPATH=.. python testrunner.py --expected ../known_failures-merged.txt
+PYTHONPATH=.. python testrunner.py --config ../known_failures-merged.py
 cd ..
 %endif
 
