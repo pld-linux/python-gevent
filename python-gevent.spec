@@ -2,7 +2,7 @@
 # TODO:
 #	- SSL Broken with python 2.7.9
 #	  https://github.com/gevent/gevent/issues/477
-#	
+#
 #	- test__core_stat.py fails on 32-bit builds with system libev
 #	  investigate/fix that and enable system libev
 #
@@ -21,10 +21,10 @@ Version:	1.0.1
 Release:	1
 License:	MIT
 Group:		Development/Languages
-URL:		http://www.gevent.org/
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
 # Source0-md5:	7b952591d1a0174d6eb6ac47bd975ab6
-Source1:	known_failures-pld.txt
+Patch0:		known_failures-pld.patch
+URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.11}
 #BuildRequires:	python-Cython
@@ -54,9 +54,7 @@ Features include:
 
 %prep
 %setup -q -n %{module}-%{version}
-%if %{with tests}
-cat known_failures.py %{SOURCE1} > known_failures-merged.py
-%endif
+%patch0 -p1
 
 %build
 # when Cython-generated files are to be rebuilt
@@ -71,7 +69,7 @@ CFLAGS="%{rpmcflags}" \
 
 %if %{with tests}
 cd greentest
-PYTHONPATH=.. python testrunner.py --config ../known_failures-merged.py
+PYTHONPATH=.. python testrunner.py --config ../known_failures.py
 cd ..
 %endif
 
