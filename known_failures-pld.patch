@@ -1,6 +1,7 @@
---- gevent-1.0.1/known_failures.py~	2014-04-30 17:45:07.000000000 +0300
-+++ gevent-1.0.1/known_failures.py	2015-05-30 17:35:36.317971589 +0300
-@@ -21,6 +21,83 @@
+diff -dur -x '*.orig' gevent-1.0.2.orig/known_failures.py gevent-1.0.2/known_failures.py
+--- gevent-1.0.2.orig/known_failures.py	2015-05-23 14:04:13.000000000 +0200
++++ gevent-1.0.2/known_failures.py	2015-07-14 15:20:53.000000000 +0200
+@@ -16,6 +16,86 @@
      # Sometimes fails with AssertionError: ...\nIOError: close() called during concurrent operation on the same file object.\n'
      # Sometimes it contains "\nUnhandled exception in thread started by \nsys.excepthook is missing\nlost sys.stderr\n"
      "FLAKY test__subprocess_interrupted.py",
@@ -17,7 +18,7 @@
 +#       File "/home/users/jajcus/rpm/BUILD/gevent-1.0/gevent/hub.py", line 331, in s
 +#         return greenlet.switch(self)
 +#     Timeout: 1 second: test timed out
-+'test__pywsgi.py',
++'FLAKY test__pywsgi.py',
 +
 +######################################################
 +# Tests which fail when building with system libev
@@ -43,44 +44,47 @@
 +#     File "test__destroy.py", line 14, in <module>
 +#       assert saved_loop.fileno() is None, saved_loop
 +#   AttributeError: 'gevent.core.loop' object has no attribute 'fileno'
-+'test__destroy.py',
++'FLAKY test__destroy.py',
 +
 +# | /usr/bin/python -u test_close_backend_fd.py
 +#   Traceback (most recent call last):
 +#     File "test_close_backend_fd.py", line 11, in <module>
 +#       fileno = hub.loop.fileno()
 +#   AttributeError: 'gevent.core.loop' object has no attribute 'fileno'
-+'test_close_backend_fd.py',
++'FLAKY test_close_backend_fd.py',
 +
 +######################################################
 +# Tests which may fail on our builders
 +
 +# attempts to bind to port 53
-+'test_ares_timeout.py',
++'FLAKY test_ares_timeout.py',
 +
 +# depends on external service
-+'test__socket_ssl.py',
++'FLAKY test__socket_ssl.py',
 +
 +# depends on external URL accessibility
-+'monkey_test test_urllib2net.py',
-+'monkey_test --Event test_urllib2net.py',
++'FLAKY monkey_test test_urllib2net.py',
++'FLAKY monkey_test --Event test_urllib2net.py',
 +
 +# requires webpy, not in PLD
 +# has expectations on local TCP ports availability
-+'test___example_servers.py',
++'FLAKY test___example_servers.py',
 +
 +#    File "test__socket.py", line 140, in test_sendall_timeout
 +#      self.assertRaises(self.TIMEOUT_ERROR, client.sendall, data_sent)
 +#  AssertionError: timeout not raised
-+'test__socket.py',
++'FLAKY test__socket.py',
 +
 +# uses DNS and external URLs,
 +# requires 'sendfile' python module
-+'test__examples.py',
++'FLAKY test__examples.py',
 +
 +# expects local TCP port 6000 being available
-+'test__example_echoserver.py'
++'FLAKY test__example_echoserver.py',
++
++# another network test
++'FLAKY test__example_portforwarder.py',
 +
  ]
  
- 
+ if sys.version_info[:2] <= (2, 6):
