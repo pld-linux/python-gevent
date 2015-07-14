@@ -1,7 +1,7 @@
 diff -dur -x '*.orig' gevent-1.0.2.orig/known_failures.py gevent-1.0.2/known_failures.py
 --- gevent-1.0.2.orig/known_failures.py	2015-05-23 14:04:13.000000000 +0200
 +++ gevent-1.0.2/known_failures.py	2015-07-14 15:20:53.000000000 +0200
-@@ -16,6 +16,86 @@
+@@ -16,6 +16,89 @@
      # Sometimes fails with AssertionError: ...\nIOError: close() called during concurrent operation on the same file object.\n'
      # Sometimes it contains "\nUnhandled exception in thread started by \nsys.excepthook is missing\nlost sys.stderr\n"
      "FLAKY test__subprocess_interrupted.py",
@@ -84,6 +84,9 @@ diff -dur -x '*.orig' gevent-1.0.2.orig/known_failures.py gevent-1.0.2/known_fai
 +
 +# another network test
 +'FLAKY test__example_portforwarder.py',
++
++# DNS
++'FLAKY test__socket_dns.py',
 +
  ]
  
