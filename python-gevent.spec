@@ -16,12 +16,12 @@
 %define     module  gevent
 Summary:	A coroutine-based Python networking library
 Name:		python-%{module}
-Version:	1.1b2
+Version:	1.1b4
 Release:	1
 License:	MIT
 Group:		Development/Languages
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	66a0da28e731ede2cf0422fc0a63f873
+# Source0-md5:	1faddf3de98201793268bf62f9afa103
 Patch0:		known_failures-pld.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
