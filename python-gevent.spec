@@ -92,7 +92,7 @@ CC="%{__cc}" \
 CFLAGS="%{rpmcflags}" \
 %{?with_system_libev:LIBEV_EMBED=false} \
 %{?with_system_c_ares:CARES_EMBED=false} \
-%{__python} setup.py build --build-base build-2
+%py_build
 
 %if %{with tests}
 cd greentest
@@ -106,7 +106,7 @@ CC="%{__cc}" \
 CFLAGS="%{rpmcflags}" \
 %{?with_system_libev:LIBEV_EMBED=false} \
 %{?with_system_c_ares:CARES_EMBED=false} \
-%{__python3} setup.py build --build-base build-3
+%py3_build
 
 %if %{with tests}
 cd greentest
@@ -121,11 +121,7 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with python2}
 %{?with_system_libev:LIBEV_EMBED=false} \
 %{?with_system_c_ares:CARES_EMBED=false} \
-%{__python} setup.py \
-	build --build-base build-2 \
-	install --skip-build \
-	--optimize=2 \
-	--root=$RPM_BUILD_ROOT
+%py_install
 
 %py_postclean
 %endif
@@ -133,11 +129,7 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with python3}
 %{?with_system_libev:LIBEV_EMBED=false} \
 %{?with_system_c_ares:CARES_EMBED=false} \
-%{__python3} setup.py \
-	build --build-base build-3 \
-	install --skip-build \
-	--optimize=2 \
-	--root=$RPM_BUILD_ROOT
+%py3_install
 %endif
 
 %clean
