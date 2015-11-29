@@ -43,7 +43,7 @@ BuildRequires:	python3-test
 %endif
 %endif
 BuildRequires:	rpm-pythonprov
-BuildRequires:	rpmbuild(macros) >= 1.688
+BuildRequires:	rpmbuild(macros) >= 1.710
 Requires:	python-greenlet >= 0.3.2
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
