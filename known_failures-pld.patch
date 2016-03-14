@@ -1,7 +1,7 @@
 diff -dur gevent-1.1.0.orig/known_failures.py gevent-1.1.0/known_failures.py
 --- gevent-1.1.0.orig/known_failures.py	2016-03-05 14:10:58.000000000 +0100
-+++ gevent-1.1.0/known_failures.py	2016-03-14 12:20:33.000000000 +0100
-@@ -33,8 +33,226 @@
++++ gevent-1.1.0/known_failures.py	2016-03-14 13:24:11.000000000 +0100
+@@ -33,8 +33,232 @@
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -225,6 +225,12 @@ diff -dur gevent-1.1.0.orig/known_failures.py gevent-1.1.0/known_failures.py
 +
 +    # DNS
 +    'FLAKY test__getaddrinfo_import.py',
++
++    # uses lsof, which scans /proc
++    'FLAKY test__makefile_ref.py',
++
++    # uses os.forkpty()
++    'FLAKY test__monkey_sigchld.py',
 +]
  
  if os.environ.get('GEVENT_RESOLVER') == 'ares' or LEAKTEST:
