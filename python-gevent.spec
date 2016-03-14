@@ -16,12 +16,13 @@
 %define     module  gevent
 Summary:	A coroutine-based Python networking library
 Name:		python-%{module}
-Version:	1.1b5
-Release:	2
+Version:	1.1.0
+Release:	1
+Epoch:		1
 License:	MIT
 Group:		Development/Languages
 Source0:	http://pypi.python.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	e120a6672feecbbc38b2fe1757ae6099
+# Source0-md5:	24b3e44134fbff250526f3b949763f99
 Patch0:		known_failures-pld.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
@@ -142,9 +143,8 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{py_sitedir}/%{module}
 %{py_sitedir}/%{module}/*.py[co]
 %attr(755,root,root) %{py_sitedir}/%{module}/_semaphore.so
-%attr(755,root,root) %{py_sitedir}/%{module}/_util.so
 %attr(755,root,root) %{py_sitedir}/%{module}/ares.so
-%attr(755,root,root) %{py_sitedir}/%{module}/core.so
+%attr(755,root,root) %{py_sitedir}/%{module}/corecext.so
 %if "%{py_ver}" > "2.4"
 %{py_sitedir}/%{module}-%{version}-py%{py_ver}.egg-info
 %endif
@@ -158,8 +158,7 @@ rm -rf $RPM_BUILD_ROOT
 %{py3_sitedir}/%{module}/__pycache__
 %{py3_sitedir}/%{module}/*.py*
 %attr(755,root,root) %{py3_sitedir}/%{module}/_semaphore*.so
-%attr(755,root,root) %{py3_sitedir}/%{module}/_util*.so
 %attr(755,root,root) %{py3_sitedir}/%{module}/ares*.so
-%attr(755,root,root) %{py3_sitedir}/%{module}/core*.so
+%attr(755,root,root) %{py3_sitedir}/%{module}/corecext*.so
 %{py3_sitedir}/%{module}-%{version}-py*.egg-info
 %endif
