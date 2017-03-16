@@ -1,7 +1,6 @@
-diff -dur gevent-1.1.0.orig/known_failures.py gevent-1.1.0/known_failures.py
---- gevent-1.1.0.orig/known_failures.py	2016-03-05 14:10:58.000000000 +0100
-+++ gevent-1.1.0/known_failures.py	2016-03-14 13:24:11.000000000 +0100
-@@ -33,8 +33,232 @@
+--- gevent-1.1.0.orig/src/greentest/known_failures.py	2016-03-05 14:10:58.000000000 +0100
++++ gevent-1.1.0/src/greentest/known_failures.py	2016-03-14 13:24:11.000000000 +0100
+@@ -33,8 +33,235 @@
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -222,6 +221,9 @@ diff -dur gevent-1.1.0.orig/known_failures.py gevent-1.1.0/known_failures.py
 +
 +    # DNS
 +    'FLAKY test__socket_dns.py',
++
++    # DNS, non-deterministic order
++    'FLAKY test__socket_dns6.py',
 +
 +    # DNS
 +    'FLAKY test__getaddrinfo_import.py',
