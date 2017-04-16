@@ -18,7 +18,7 @@ Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
 Version:	1.2.1
-Release:	2
+Release:	3
 Epoch:		1
 License:	MIT
 Group:		Development/Languages
@@ -199,7 +199,8 @@ rm -rf $RPM_BUILD_ROOT
 %{py3_sitedir}/gevent/*.py
 %dir %{py3_sitedir}/gevent/libev
 %attr(755,root,root) %{py3_sitedir}/gevent/libev/_corecffi.abi3.so
-%attr(755,root,root) %{py3_sitedir}/gevent/libev/corecext.cpython-36m-*-linux-gnu.so
+%attr(755,root,root) %{py3_sitedir}/gevent/libev/corecext.cpython-36m-*.so
+
 %{py3_sitedir}/gevent/libev/__pycache__
 %{py3_sitedir}/gevent/libev/libev.pxd
 %{py3_sitedir}/gevent/libev/*.py
