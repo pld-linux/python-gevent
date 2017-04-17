@@ -199,8 +199,7 @@ rm -rf $RPM_BUILD_ROOT
 %{py3_sitedir}/gevent/*.py
 %dir %{py3_sitedir}/gevent/libev
 %attr(755,root,root) %{py3_sitedir}/gevent/libev/_corecffi.abi3.so
-%attr(755,root,root) %{py3_sitedir}/gevent/libev/corecext.cpython-36m-*.so
-
+%attr(755,root,root) %{py3_sitedir}/gevent/libev/corecext.cpython-*.so
 %{py3_sitedir}/gevent/libev/__pycache__
 %{py3_sitedir}/gevent/libev/libev.pxd
 %{py3_sitedir}/gevent/libev/*.py
