@@ -17,14 +17,14 @@
 Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
-Version:	1.2.1
-Release:	3
+Version:	1.2.2
+Release:	1
 Epoch:		1
 License:	MIT
 Group:		Development/Languages
 #Source0Download: https://pypi.python.org/simple/gevent
-Source0:	http://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	6700a2433c8e0635425e6798760efc81
+Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
+# Source0-md5:	7f0baf355384fe5ff2ecf66853422554
 Patch0:		known_failures-pld.patch
 Patch1:		%{name}-tests.patch
 URL:		http://www.gevent.org/
