@@ -1,6 +1,7 @@
---- gevent-1.1.0.orig/src/greentest/known_failures.py	2016-03-05 14:10:58.000000000 +0100
-+++ gevent-1.1.0/src/greentest/known_failures.py	2016-03-14 13:24:11.000000000 +0100
-@@ -33,8 +33,260 @@
+diff -dur gevent-1.2.2.orig/src/greentest/known_failures.py gevent-1.2.2/src/greentest/known_failures.py
+--- gevent-1.2.2.orig/src/greentest/known_failures.py	2017-06-05 13:31:50.000000000 +0200
++++ gevent-1.2.2/src/greentest/known_failures.py	2018-03-05 12:50:16.000000000 +0100
+@@ -33,8 +33,264 @@
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -258,7 +259,11 @@
 +
 +    # uses os.forkpty()
 +    'FLAKY test__monkey_sigchld.py',
++
++    # network
++    'FLAKY test__server.py',
++    'FLAKY test__server_pywsgi.py',
 +]
  
- if os.environ.get('GEVENT_RESOLVER') == 'ares' or LEAKTEST:
-     # XXX fix this
+ if sys.platform == 'win32':
+     # other Windows-related issues (need investigating)
