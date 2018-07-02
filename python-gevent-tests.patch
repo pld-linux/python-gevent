@@ -13,13 +13,4 @@
          ))
  
          tests_count = 0
---- gevent-1.2.1/src/greentest/test__signal.py.orig	2017-01-12 14:15:25.000000000 +0100
-+++ gevent-1.2.1/src/greentest/test__signal.py	2017-03-15 15:48:49.582871992 +0100
-@@ -71,7 +71,6 @@
-                 reload_module(site)
-             except TypeError:
-                 assert greentest.PY36
--                assert greentest.RUNNING_ON_CI
-                 import sys
-                 for m in set(sys.modules.values()):
-                     try:
+
