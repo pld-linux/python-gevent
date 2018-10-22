@@ -17,28 +17,28 @@
 Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
-Version:	1.3.4
+Version:	1.3.7
 Release:	1
 Epoch:		1
 License:	MIT
 Group:		Development/Languages
 #Source0Download: https://pypi.python.org/simple/gevent
 Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	97deaf53196ba430808e8f18b731112a
+# Source0-md5:	5d3f61ef4bb40fdbd5cbaac7f0d2e585
 Patch0:		known_failures-pld.patch
 Patch1:		%{name}-tests.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.23}
-# if cpython generated files need rebuild
-#BuildRequires:	python-Cython >= 0.25.1
+BuildRequires:	python-Cython >= 0.28.5
 %if %{with python2}
 BuildRequires:	python-cffi >= 1.3.0
 BuildRequires:	python-devel >= 1:2.7
+BuildRequires:	python-greenlet-devel >= 0.4.15
 %if %{with tests}
 BuildRequires:	python-coverage >= 4.0
 BuildRequires:	python-devel-src >= 1:2.7
-BuildRequires:	python-greenlet >= 0.4.10
+BuildRequires:	python-greenlet >= 0.4.15
 BuildRequires:  python-objgraph
 BuildRequires:	python-setuptools
 BuildRequires:	python-test
@@ -47,6 +47,7 @@ BuildRequires:	python-test
 %if %{with python3}
 BuildRequires:	python3-cffi >= 1.3.0
 BuildRequires:	python3-devel >= 1:3.3
+BuildRequires:	python3-greenlet-devel >= 0.4.15
 %if %{with tests}
 BuildRequires:	python3-coverage >= 4.0
 BuildRequires:	python3-greenlet >= 0.4.10
@@ -58,7 +59,7 @@ BuildRequires:	python3-test
 BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.714
 %{?with_system_libev:Requires:	libev >= 4.23}
-Requires:	python-greenlet >= 0.4.10
+Requires:	python-greenlet >= 0.4.15
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -88,7 +89,7 @@ Summary:	A coroutine-based Python 3 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 3 oparta na korutynach
 Group:		Libraries/Python
 %{?with_system_libev:Requires:	libev >= 4.23}
-Requires:	python-greenlet >= 0.4.10
+Requires:	python-greenlet >= 0.4.15
 
 %description -n python3-%{module}
 gevent is a coroutine-based Python networking library. Features
@@ -118,9 +119,10 @@ możliwości to m.in.
 %patch1 -p1 -b .orig
 
 %build
-# when Cython-generated files are to be rebuilt
-# (BR: python-Cython must be enabled then too)
-# ln -s Makefile.ext Makefile
+
+# force rebuild of Cython-generated files
+# they depend on specific deps (e.g. greenlet) versions
+rm src/gevent/{*.c,resolver/cares.c}
 
 # must be exported to work (py*_build macro is not single invocation)
 %{?with_system_libev:export LIBEV_EMBED=false}
