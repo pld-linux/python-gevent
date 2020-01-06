@@ -1,6 +1,6 @@
 --- gevent-1.4.0.orig/src/gevent/tests/known_failures.py	2017-06-05 13:31:50.000000000 +0200
 +++ gevent-1.4.0/src/gevent/tests/known_failures.py	2018-03-05 12:50:16.000000000 +0100
-@@ -33,8 +33,276 @@
+@@ -33,8 +33,277 @@
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -262,9 +262,10 @@
 +    # network
 +    'FLAKY test__server.py',
 +    'FLAKY test__server_pywsgi.py',
++    'FLAKY test_urllib2net.py',
 +
 +    # certificate verify failed
-+    'FLAKY test_urllib2_localnet.py', # 'FLAKY monkey_test test_urllib2_localnet.py',
++    'FLAKY test_urllib2_localnet.py',
 +    # one warning too little?
 +    'FLAKY test__monkey.py',
 +    # non-deterministic
