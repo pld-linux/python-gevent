@@ -74,7 +74,7 @@ BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.714
 %if %{with doc}
 BuildRequires:	python3-repoze.sphinx.autointerface
-BuildRequires:	sphinx-pdg
+BuildRequires:	sphinx-pdg-3
 %endif
 %{?with_system_libev:Requires:	libev >= 4.23}
 Requires:	python-greenlet >= 0.4.15
@@ -177,9 +177,9 @@ PYTHONPATH=$(echo $PWD/build-3/lib.*) \
 %endif
 
 %if %{with doc}
-PYTHONPATH=$(echo $PWD/build-2/lib.*) \
+PYTHONPATH=$(echo $PWD/build-3/lib.*) \
 %{__make} -C doc html \
-	SPHINXBUILD=sphinx-build-2
+	SPHINXBUILD=sphinx-build-3
 %endif
 
 %install
