@@ -1,7 +1,6 @@
-diff -dur gevent-1.2.2.orig/src/greentest/known_failures.py gevent-1.2.2/src/greentest/known_failures.py
---- gevent-1.2.2.orig/src/greentest/known_failures.py	2017-06-05 13:31:50.000000000 +0200
-+++ gevent-1.2.2/src/greentest/known_failures.py	2018-03-05 12:50:16.000000000 +0100
-@@ -33,8 +33,264 @@
+--- gevent-1.4.0.orig/src/gevent/tests/known_failures.py	2017-06-05 13:31:50.000000000 +0200
++++ gevent-1.4.0/src/gevent/tests/known_failures.py	2018-03-05 12:50:16.000000000 +0100
+@@ -33,8 +33,276 @@
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -199,7 +198,7 @@ diff -dur gevent-1.2.2.orig/src/greentest/known_failures.py gevent-1.2.2/src/gre
 +
 +    # depends on external URL accessibility
 +    'FLAKY monkey_test test_urllib2net.py',
-+    'FLAKY monkey_test --Event test_urllib2net.py',
++    #'FLAKY monkey_test --Event test_urllib2net.py',
 +
 +    # requires webpy, not in PLD
 +    # has expectations on local TCP ports availability
@@ -263,6 +262,18 @@ diff -dur gevent-1.2.2.orig/src/greentest/known_failures.py gevent-1.2.2/src/gre
 +    # network
 +    'FLAKY test__server.py',
 +    'FLAKY test__server_pywsgi.py',
++
++    # certificate verify failed
++    'FLAKY test_urllib2_localnet.py', # 'FLAKY monkey_test test_urllib2_localnet.py',
++    # one warning too little?
++    'FLAKY test__monkey.py',
++    # non-deterministic
++    'FLAKY test__hub.py',
++    # "thread_ident=X" vs "thread_ident=-X" on py3.8?
++    'FLAKY test__util.py',
++    # memory corruption under py3.8?
++    'FLAKY test__monkey_sigchld_2.py',
++    'FLAKY test__monkey_sigchld_3.py'
 +]
  
  if sys.platform == 'win32':

@@ -1,0 +1,1263 @@
+Based on https://github.com/gevent/gevent/commit/8224e81425762ad21d3b63ffb9cc0a0c2d789704.patch
+and https://src.fedoraproject.org/rpms/python-gevent/raw/master/f/0001-code-replace.patch
+
+From e6e2959184909c6292e0135b709282cd5f96065b Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Fri, 6 Sep 2019 16:29:58 -0500
+Subject: [PATCH 1/9] Basic support for CPython 3.8.0b4.
+
+Still needs the specific networking test classes added, but all the basics pass for me. Lets see about CI.
+---
+ .travis.yml                           | 11 +++++++
+ CHANGES.rst                           |  4 +++
+ examples/webproxy.py                  |  7 +++-
+ pyproject.toml                        |  5 +--
+ scripts/install.sh                    |  3 ++
+ src/gevent/__semaphore.pxd            |  2 +-
+ src/gevent/_compat.py                 |  2 +-
+ src/gevent/_socket2.py                |  1 +
+ src/gevent/_socketcommon.py           | 12 +++++--
+ src/gevent/monkey.py                  | 46 +++++++++++++++++++++++++--
+ src/gevent/os.py                      | 29 ++++++++++++++---
+ src/gevent/subprocess.py              | 32 +++++++++++++++++++
+ src/gevent/testing/testrunner.py      | 17 +++++++---
+ src/gevent/tests/test__core_fork.py   |  7 ++--
+ src/gevent/tests/test__threading_2.py | 26 +++++++++------
+ src/gevent/thread.py                  |  6 ++++
+ src/gevent/threading.py               | 46 ++++++++++-----------------
+ 17 files changed, 196 insertions(+), 60 deletions(-)
+
+#diff --git a/.travis.yml b/.travis.yml
+#index bf307df95..05dc24b12 100644
+#--- a/.travis.yml
+#+++ b/.travis.yml
+#@@ -42,6 +42,7 @@ env:
+#       - TRAVIS_PYTHON_VERSION=3.5
+#       - TRAVIS_PYTHON_VERSION=3.6
+#       - TRAVIS_PYTHON_VERSION=3.7
+#+      - TRAVIS_PYTHON_VERSION=3.8
+#       - TRAVIS_PYTHON_VERSION=pypy2.7
+#       - TRAVIS_PYTHON_VERSION=pypy3.6
+#       - TRAVIS_PYTHON_VERSION=2.7 GEVENTSETUP_EMBED=0
+#@@ -144,6 +145,8 @@ jobs:
+#       script: ccache -s
+#       before_script: true
+#       after_success: true
+#+    - <<: *build-gevent
+#+      env: TRAVIS_PYTHON_VERSION=3.8
+#     - <<: *build-gevent
+#       env: TRAVIS_PYTHON_VERSION=3.5
+#     - <<: *build-gevent
+#@@ -278,6 +281,14 @@ jobs:
+#       env: TRAVIS_PYTHON_VERSION=3.7
+#       name: pure37
+# 
+#+    # 3.8
+#+    - <<: *test-libuv-jobs
+#+      env: TRAVIS_PYTHON_VERSION=3.8
+#+      name: libuv36
+#+    - <<: *test-libev-jobs
+#+      env: TRAVIS_PYTHON_VERSION=3.8
+#+      name: libev-cffi36
+#+
+# 
+#     # 2.7, no-embed. Run the tests that exercise the libraries we
+#     # linked to.
+#diff --git a/CHANGES.rst b/CHANGES.rst
+#index 52b5e1c6f..53f4398d2 100644
+#--- a/CHANGES.rst
+#+++ b/CHANGES.rst
+#@@ -12,6 +12,10 @@
+# - Add an ``--module`` option to ``gevent.monkey`` allowing to run a Python
+#   module rather than a script. See :pr:`1440`.
+# 
+#+- Add support for CPython 3.8.0b4.
+#+
+#+- Improve the way joining the main thread works on Python 3.
+#+
+# 1.5a1 (2019-05-02)
+# ==================
+# 
+diff --git a/examples/webproxy.py b/examples/webproxy.py
+index e381d6bd4..de1eaf8d5 100755
+--- a/examples/webproxy.py
++++ b/examples/webproxy.py
+@@ -15,7 +15,12 @@
+ import sys
+ import re
+ import traceback
+-from cgi import escape
++
++try:
++    from cgi import escape
++except ImportError:
++    # Python 3.8 removed this API
++    from html import escape
+ 
+ try:
+     import urllib2
+#diff --git a/pyproject.toml b/pyproject.toml
+#index 2b611b9a4..f611ef972 100644
+#--- a/pyproject.toml
+#+++ b/pyproject.toml
+#@@ -12,8 +12,9 @@ requires = [
+#      # 0.28 is faster, and (important!) lets us specify the target module
+#      # name to be created so that we can have both foo.py and _foo.so
+#      # at the same time. 0.29 fixes some issues with Python 3.7,
+#-     # and adds the 3str mode for transition to Python 3.
+#-     "Cython >= 0.29.7",
+#+     # and adds the 3str mode for transition to Python 3. 0.29.12+ is
+#+     # required for Python 3.8
+#+     "Cython >= 0.29.13",
+#      # See version requirements in setup.py
+#      "cffi >= 1.12.3 ; platform_python_implementation == 'CPython'",
+#      # Python 3.7 requires at least 0.4.14, which is ABI incompatible with earlier
+#diff --git a/scripts/install.sh b/scripts/install.sh
+#index 94bd53058..ef8a6dfbd 100755
+#--- a/scripts/install.sh
+#+++ b/scripts/install.sh
+#@@ -99,6 +99,9 @@ for var in "$@"; do
+#         3.7)
+#             install 3.7.2 python3.7 3.7.d
+#             ;;
+#+        3.8)
+#+            install 3.8.0b4 python3.8 3.8.d
+#+            ;;
+#         pypy2.7)
+#             install pypy2.7-7.1.0 pypy2.7 pypy2.7.d
+#             ;;
+diff --git a/src/gevent/__semaphore.pxd b/src/gevent/__semaphore.pxd
+index dc9f11c68..e46778ed7 100644
+--- a/src/gevent/__semaphore.pxd
++++ b/src/gevent/__semaphore.pxd
+@@ -13,7 +13,7 @@ cdef class Semaphore(AbstractLinkable):
+     # threadpool uses it
+     cpdef _start_notify(self)
+     cpdef int wait(self, object timeout=*) except -1000
+-    cpdef bint acquire(self, int blocking=*, object timeout=*) except -1000
++    cpdef bint acquire(self, bint blocking=*, object timeout=*) except -1000
+     cpdef __enter__(self)
+     cpdef __exit__(self, object t, object v, object tb)
+ 
+diff --git a/src/gevent/_compat.py b/src/gevent/_compat.py
+index 56391459e..e8f5ed4ba 100644
+--- a/src/gevent/_compat.py
++++ b/src/gevent/_compat.py
+@@ -21,7 +21,7 @@
+ PYPY = hasattr(sys, 'pypy_version_info')
+ WIN = sys.platform.startswith("win")
+ LINUX = sys.platform.startswith('linux')
+-OSX = sys.platform == 'darwin'
++OSX = MAC = sys.platform == 'darwin'
+ 
+ 
+ PURE_PYTHON = PYPY or os.getenv('PURE_PYTHON')
+diff --git a/src/gevent/_socket2.py b/src/gevent/_socket2.py
+index 15f470893..7c2f35f3e 100644
+--- a/src/gevent/_socket2.py
++++ b/src/gevent/_socket2.py
+@@ -6,6 +6,7 @@
+ 
+ # Our import magic sadly makes this warning useless
+ # pylint: disable=undefined-variable
++import sys
+ 
+ from gevent import _socketcommon
+ from gevent._util import copy_globals
+#diff --git a/src/gevent/_socketcommon.py b/src/gevent/_socketcommon.py
+#index cd12ac1a9..87b9a4f8a 100644
+#--- a/src/gevent/_socketcommon.py
+#+++ b/src/gevent/_socketcommon.py
+#@@ -69,13 +69,19 @@
+# __imports__.extend(__py3_imports__)
+# 
+# import time
+#-import sys
+#+
+# from gevent._hub_local import get_hub_noargs as get_hub
+# from gevent._compat import string_types, integer_types, PY3
+#+from gevent._compat import PY38
+#+from gevent._compat import WIN as is_windows
+#+from gevent._compat import OSX as is_macos
+# from gevent._util import copy_globals
+# 
+#-is_windows = sys.platform == 'win32'
+#-is_macos = sys.platform == 'darwin'
+#+if PY38:
+#+    __imports__.extend([
+#+        'create_server',
+#+        'has_dualstack_ipv6',
+#+    ])
+# 
+# # pylint:disable=no-name-in-module,unused-import
+# if is_windows:
+diff --git a/src/gevent/monkey.py b/src/gevent/monkey.py
+index 5dbfe3f78..f862f879c 100644
+--- a/src/gevent/monkey.py
++++ b/src/gevent/monkey.py
+@@ -668,6 +668,22 @@ def join(timeout=None):
+                 raise RuntimeError("Cannot join current thread")
+             if thread_greenlet is not None and thread_greenlet.dead:
+                 return
++            # You may ask: Why not call thread_greenlet.join()?
++            # Well, in the one case we actually have a greenlet, it's the
++            # low-level greenlet.greenlet object for the main thread, which
++            # doesn't have a join method.
++            #
++            # You may ask: Why not become the main greenlet's *parent*
++            # so you can get notified when it finishes? Because you can't
++            # create a greenlet cycle (the current greenlet is a descendent
++            # of the parent), and nor can you set a greenlet's parent to None,
++            # so there can only ever be one greenlet with a parent of None: the main
++            # greenlet, the one we need to watch.
++            #
++            # You may ask: why not swizzle out the problematic lock on the main thread
++            # into a gevent friendly lock? Well, the interpreter actually depends on that
++            # for the main thread in threading._shutdown; see below.
++
+             if not thread.is_alive():
+                 return
+ 
+@@ -700,8 +716,34 @@ def join(timeout=None):
+         if orig_current_thread == threading_mod.main_thread():
+             main_thread = threading_mod.main_thread()
+             _greenlet = main_thread._greenlet = greenlet.getcurrent()
+-
+-            main_thread.join = make_join_func(main_thread, _greenlet)
++            main_thread.__real_tstate_lock = main_thread._tstate_lock
++
++            # The interpreter will call threading._shutdown
++            # when the main thread exits and is about to
++            # go away. It is called *in* the main thread. This
++            # is a perfect place to notify other greenlets that
++            # the main thread is done. We do this by overriding the
++            # lock of the main thread during operation, and only restoring
++            # it to the native blocking version at shutdown time
++            # (the interpreter also has a reference to this lock in a
++            # C data structure).
++            main_thread._tstate_lock = threading_mod.Lock()
++            main_thread._tstate_lock.acquire()
++            orig_shutdown = threading_mod._shutdown
++            def _shutdown():
++                # Release anyone trying to join() me,
++                # and let us switch to them.
++                if main_thread._tstate_lock:
++                    main_thread._tstate_lock.release()
++                    from gevent import sleep
++                    sleep()
++                # The only truly blocking native shutdown lock to
++                # acquire should be our own (hopefully)
++                main_thread._tstate_lock = main_thread.__real_tstate_lock
++                main_thread.__real_tstate_lock = None
++                orig_shutdown()
++
++            threading_mod._shutdown = _shutdown
+ 
+             # Patch up the ident of the main thread to match. This
+             # matters if threading was imported before monkey-patching
+diff --git a/src/gevent/os.py b/src/gevent/os.py
+index 3980f320c..4dd66abd8 100644
+--- a/src/gevent/os.py
++++ b/src/gevent/os.py
+@@ -385,6 +385,12 @@ def waitpid(pid, options):
+             # we're not watching it
+             return _waitpid(pid, options)
+ 
++        def _watch_child(pid, callback=None, loop=None, ref=False):
++            loop = loop or get_hub().loop
++            watcher = loop.child(pid, ref=ref)
++            _watched_children[pid] = watcher
++            watcher.start(_on_child, watcher, callback)
++
+         def fork_and_watch(callback=None, loop=None, ref=False, fork=fork_gevent):
+             """
+             Fork a child process and start a child watcher for it in the parent process.
+@@ -413,10 +419,7 @@ def fork_and_watch(callback=None, loop=None, ref=False, fork=fork_gevent):
+             pid = fork()
+             if pid:
+                 # parent
+-                loop = loop or get_hub().loop
+-                watcher = loop.child(pid, ref=ref)
+-                _watched_children[pid] = watcher
+-                watcher.start(_on_child, watcher, callback)
++                _watch_child(pid, callback, loop, ref)
+             return pid
+ 
+         __extensions__.append('fork_and_watch')
+@@ -474,6 +477,23 @@ def forkpty(*args, **kwargs):
+                     # take any args to match fork_and_watch
+                     return forkpty_and_watch(*args, **kwargs)
+             __implements__.append("waitpid")
++
++            if hasattr(os, 'posix_spawn'):
++                _raw_posix_spawn = os.posix_spawn
++                _raw_posix_spawnp = os.posix_spawnp
++
++                def posix_spawn(*args, **kwargs):
++                    pid = _raw_posix_spawn(*args, **kwargs)
++                    _watch_child(pid)
++                    return pid
++
++                def posix_spawnp(*args, **kwargs):
++                    pid = _raw_posix_spawnp(*args, **kwargs)
++                    _watch_child(pid)
++                    return pid
++
++                __implements__.append("posix_spawn")
++                __implements__.append("posix_spawnp")
+         else:
+             def fork():
+                 """
+@@ -503,6 +523,7 @@ def forkpty():
+ else:
+     __implements__.remove('fork')
+ 
++
+ __imports__ = copy_globals(os, globals(),
+                            names_to_ignore=__implements__ + __extensions__,
+                            dunder_names_to_keep=())
+#diff --git a/src/gevent/subprocess.py b/src/gevent/subprocess.py
+#index a9894f1ab..9b4d13cd2 100644
+#--- a/src/gevent/subprocess.py
+#+++ b/src/gevent/subprocess.py
+#@@ -47,6 +47,7 @@
+# from gevent._compat import PY35
+# from gevent._compat import PY36
+# from gevent._compat import PY37
+#+from gevent._compat import PY38
+# from gevent._compat import reraise
+# from gevent._compat import fspath
+# from gevent._compat import fsencode
+#@@ -69,6 +70,25 @@
+#     __implements__.append("_posixsubprocess")
+#     _posixsubprocess = None
+# 
+#+if PY38:
+#+    # Using os.posix_spawn() to start subprocesses
+#+    # bypasses our child watchers on certain operating systems,
+#+    # and with certain library versions. Possibly the right
+#+    # fix is to monkey-patch os.posix_spawn like we do os.fork?
+#+    # These have no effect, they're just here to match the stdlib.
+#+    # TODO: When available, given a monkey patch on them, I think
+#+    # we ought to be able to use them if the stdlib has identified them
+#+    # as suitable.
+#+    __implements__.extend([
+#+        '_use_posix_spawn',
+#+        '_USE_POSIX_SPAWN'
+#+    ])
+#+
+#+    def _use_posix_spawn():
+#+        return False
+#+
+#+    _USE_POSIX_SPAWN = False
+#+
+# # Some symbols we define that we expect to export;
+# # useful for static analysis
+# PIPE = "PIPE should be imported"
+#@@ -1720,3 +1740,15 @@ def run(*popenargs, **kwargs):
+#             raise _with_stdout_stderr(CalledProcessError(retcode, process.args, stdout), stderr)
+# 
+#     return CompletedProcess(process.args, retcode, stdout, stderr)
+#+
+#+def _gevent_did_monkey_patch(*_args):
+#+    # Beginning on 3.8 on Mac, the 'spawn' method became the default
+#+    # start method. That doesn't fire fork watchers and we can't
+#+    # easily patch to make it do so: multiprocessing uses the private
+#+    # c accelerated _subprocess module to implement this. Instead we revert
+#+    # back to using fork.
+#+    from gevent._compat import MAC
+#+    if MAC:
+#+        import multiprocessing
+#+        if hasattr(multiprocessing, 'set_start_method'):
+#+            multiprocessing.set_start_method('fork', force=True)
+diff --git a/src/gevent/testing/testrunner.py b/src/gevent/testing/testrunner.py
+index 3c1c711f8..7a3f8c6bb 100644
+--- a/src/gevent/testing/testrunner.py
++++ b/src/gevent/testing/testrunner.py
+@@ -480,17 +480,26 @@ def _setup_environ(debug=False):
+     if 'GEVENT_DEBUG' not in os.environ and debug:
+         os.environ['GEVENT_DEBUG'] = 'debug'
+ 
+-    if 'PYTHONTRACEMALLOC' not in os.environ:
++    if 'PYTHONTRACEMALLOC' not in os.environ and debug:
++        # This slows the tests down quite a bit. Reserve
++        # for debugging.
+         os.environ['PYTHONTRACEMALLOC'] = '10'
+ 
+     if 'PYTHONDEVMODE' not in os.environ:
+-        # Python 3.7
++        # Python 3.7 and above.
+         os.environ['PYTHONDEVMODE'] = '1'
+ 
+-    if 'PYTHONMALLOC' not in os.environ:
+-        # Python 3.6
++    if 'PYTHONMALLOC' not in os.environ and debug:
++        # Python 3.6 and above.
++        # This slows the tests down some, but
++        # can detect memory corruption. Unfortunately
++        # it can also be flaky, especially in pre-release
++        # versions of Python (e.g., lots of crashes on Python 3.8b4).
+         os.environ['PYTHONMALLOC'] = 'debug'
+ 
++    if sys.version_info.releaselevel != 'final' and not debug:
++        os.environ['PYTHONMALLOC'] = 'default'
++        os.environ['PYTHONDEVMODE'] = ''
+ 
+ 
+ def main():
+diff --git a/src/gevent/tests/test__core_fork.py b/src/gevent/tests/test__core_fork.py
+index fee42f547..5717cf7d9 100644
+--- a/src/gevent/tests/test__core_fork.py
++++ b/src/gevent/tests/test__core_fork.py
+@@ -1,11 +1,13 @@
+ from __future__ import print_function
+ import gevent.monkey
+ gevent.monkey.patch_all()
+-import gevent
+-import os
+ 
++import os
+ import multiprocessing
+ 
++import gevent
++from gevent._compat import MAC
++
+ hub = gevent.get_hub()
+ pid = os.getpid()
+ newpid = None
+@@ -46,6 +48,7 @@ def test():
+ if __name__ == '__main__':
+     # Must call for Windows to fork properly; the fork can't be in the top-level
+     multiprocessing.freeze_support()
++
+     # fork watchers weren't firing in multi-threading processes.
+     # This test is designed to prove that they are.
+     # However, it fails on Windows: The fork watcher never runs!
+diff --git a/src/gevent/tests/test__threading_2.py b/src/gevent/tests/test__threading_2.py
+index b425c88a3..cb7f8b91e 100644
+--- a/src/gevent/tests/test__threading_2.py
++++ b/src/gevent/tests/test__threading_2.py
+@@ -33,6 +33,7 @@
+     from test.support import verbose
+ except ImportError:
+     from test.test_support import verbose
++
+ import random
+ import re
+ import sys
+@@ -46,7 +47,7 @@
+ import weakref
+ 
+ from gevent.tests import lock_tests
+-
++verbose = False
+ # A trivial mutable counter.
+ 
+ def skipDueToHang(cls):
+@@ -132,7 +133,7 @@ def test_various_ops(self):
+             print('waiting for all tasks to complete')
+         for t in threads:
+             t.join(NUMTASKS)
+-            self.assertFalse(t.is_alive())
++            self.assertFalse(t.is_alive(), t.__dict__)
+             if hasattr(t, 'ident'):
+                 self.assertNotEqual(t.ident, 0)
+                 self.assertFalse(t.ident is None)
+@@ -351,28 +352,33 @@ def test_join_nondaemon_on_shutdown(self):
+         # Issue 1722344
+         # Raising SystemExit skipped threading._shutdown
+         import subprocess
+-        p = subprocess.Popen([sys.executable, "-W", "ignore", "-c", """if 1:
++        script = """if 1:
+ %s
+                 import threading
+                 from time import sleep
+ 
+                 def child():
+-                    sleep(1)
++                    sleep(0.3)
+                     # As a non-daemon thread we SHOULD wake up and nothing
+                     # should be torn down yet
+-                    print("Woke up, sleep function is: %%r" %% sleep)
++                    print("Woke up, sleep function is: %%s.%%s" %% (sleep.__module__, sleep.__name__))
+ 
+                 threading.Thread(target=child).start()
+                 raise SystemExit
+-            """ % setup_4],
++        """ % setup_4
++        p = subprocess.Popen([sys.executable, "-W", "ignore", "-c", script],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+         stdout, stderr = p.communicate()
+         stdout = stdout.strip()
+         stdout = stdout.decode('utf-8')
+         stderr = stderr.decode('utf-8')
+-        assert re.match('^Woke up, sleep function is: <.*?sleep.*?>$', stdout), repr(stdout)
+-        stderr = re.sub(r"^\[\d+ refs\]", "", stderr, re.MULTILINE).strip()
++
++
++        self.assertEqual(
++            'Woke up, sleep function is: gevent.hub.sleep',
++            stdout)
++
+         # On Python 2, importing pkg_resources tends to result in some 'ImportWarning'
+         # being printed to stderr about packages missing __init__.py; the -W ignore is...
+         # ignored.
+@@ -410,7 +416,7 @@ def __init__(self, should_raise):
+                     self.should_raise = should_raise
+                     self.thread = threading.Thread(target=self._run,
+                                                    args=(self,),
+-                                                   kwargs={'yet_another': self})
++                                                   kwargs={'_yet_another': self})
+                     self.thread.start()
+ 
+                 def _run(self, _other_ref, _yet_another):
+@@ -463,7 +469,7 @@ def test_1_join_on_shutdown(self):
+             t = threading.Thread(target=joiningfunc,
+                                  args=(threading.current_thread(),))
+             t.start()
+-            time.sleep(0.1)
++            time.sleep(0.2)
+             print('end of main')
+             """
+         self._run_and_join(script)
+#diff --git a/src/gevent/thread.py b/src/gevent/thread.py
+#index a1fe41813..14428df3f 100644
+#--- a/src/gevent/thread.py
+#+++ b/src/gevent/thread.py
+#@@ -41,6 +41,12 @@
+#         'interrupt_main',
+#         'start_new'
+#     ]
+#+    if sys.version_info[:2] >= (3, 8):
+#+        # We can't actually produce a value that "may be used
+#+        # to identify this particular thread system-wide", right?
+#+        # Even if we could, I imagine people will want to pass this to
+#+        # non-Python (native) APIs, so we shouldn't mess with it.
+#+        __imports__.append('get_native_id')
+# 
+# 
+# error = __thread__.error
+diff --git a/src/gevent/threading.py b/src/gevent/threading.py
+index c845fd221..64d989584 100644
+--- a/src/gevent/threading.py
++++ b/src/gevent/threading.py
+@@ -160,41 +160,25 @@ def main_native_thread():
+ if PY3:
+     # XXX: Issue 18808 breaks us on Python 3.4+.
+     # Thread objects now expect a callback from the interpreter itself
+-    # (threadmodule.c:release_sentinel). Because this never happens
++    # (threadmodule.c:release_sentinel) when the C-level PyThreadState
++    # object is being deallocated. Because this never happens
+     # when a greenlet exits, join() and friends will block forever.
+-    # The solution below involves capturing the greenlet when it is
+-    # started and deferring the known broken methods to it.
++    # Fortunately this is easy to fix: just ensure that the allocation of the
++    # lock, _set_sentinel, creates a *gevent* lock, and release it when
++    # we're done. The main _shutdown code is in Python and deals with
++    # this gracefully.
+ 
+     class Thread(__threading__.Thread):
+-        _greenlet = None
+-
+-        def is_alive(self):
+-            return bool(self._greenlet)
+-
+-        isAlive = is_alive
+ 
+         def _set_tstate_lock(self):
+-            self._greenlet = getcurrent()
+-
+-        def run(self):
+-            try:
+-                super(Thread, self).run()
+-            finally:
+-                # avoid ref cycles, but keep in __dict__ so we can
+-                # distinguish the started/never-started case
+-                self._greenlet = None
+-                self._stop() # mark as finished
+-
+-        def join(self, timeout=None):
+-            if '_greenlet' not in self.__dict__:
+-                raise RuntimeError("Cannot join an inactive thread")
+-            if self._greenlet is None:
+-                return
+-            self._greenlet.join(timeout=timeout)
+-
+-        def _wait_for_tstate_lock(self, *args, **kwargs):
+-            # pylint:disable=arguments-differ
+-            raise NotImplementedError()
++            super(Thread, self)._set_tstate_lock()
++            greenlet = getcurrent()
++            greenlet.rawlink(self.__greenlet_finished)
++
++        def __greenlet_finished(self, _):
++            if self._tstate_lock:
++                self._tstate_lock.release()
++                self._stop()
+ 
+     __implements__.append('Thread')
+ 
+@@ -203,6 +187,8 @@ class Timer(Thread, __threading__.Timer): # pylint:disable=abstract-method,inher
+ 
+     __implements__.append('Timer')
+ 
++    _set_sentinel = allocate_lock
++    __implements__.append('_set_sentinel')
+     # The main thread is patched up with more care
+     # in _gevent_will_monkey_patch
+ 
+
+From 632d3c9990f7db27f76245895bb4c2717818c5d5 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Fri, 6 Sep 2019 18:26:42 -0500
+Subject: [PATCH 2/9] Add the 3.8 test cases.
+
+---
+ src/gevent/_ssl3.py                           |   14 +
+ src/gevent/monkey.py                          |   37 +-
+ src/gevent/testing/patched_tests_setup.py     |   36 +-
+ src/gevent/testing/sysinfo.py                 |    3 +
+ src/greentest/3.8/allsans.pem                 |   81 +
+ src/greentest/3.8/badcert.pem                 |   36 +
+ src/greentest/3.8/badkey.pem                  |   40 +
+ src/greentest/3.8/capath/4e1295a3.0           |   14 +
+ src/greentest/3.8/capath/5ed36f99.0           |   41 +
+ src/greentest/3.8/capath/6e88d7b8.0           |   14 +
+ src/greentest/3.8/capath/99d0fa06.0           |   41 +
+ src/greentest/3.8/capath/b1930218.0           |   26 +
+ src/greentest/3.8/capath/ceff1710.0           |   26 +
+ src/greentest/3.8/ffdh3072.pem                |   41 +
+ src/greentest/3.8/idnsans.pem                 |  169 +
+ src/greentest/3.8/keycert.passwd.pem          |   68 +
+ src/greentest/3.8/keycert.pem                 |   66 +
+ src/greentest/3.8/keycert2.pem                |   66 +
+ src/greentest/3.8/keycert3.pem                |  164 +
+ src/greentest/3.8/keycert4.pem                |  164 +
+ src/greentest/3.8/keycertecc.pem              |  106 +
+ src/greentest/3.8/nokia.pem                   |   31 +
+ src/greentest/3.8/nullbytecert.pem            |   90 +
+ src/greentest/3.8/nullcert.pem                |    0
+ src/greentest/3.8/pycacert.pem                |   99 +
+ src/greentest/3.8/pycakey.pem                 |   40 +
+ src/greentest/3.8/revocation.crl              |   14 +
+ src/greentest/3.8/secp384r1.pem               |    7 +
+ .../3.8/selfsigned_pythontestdotnet.pem       |   34 +
+ src/greentest/3.8/ssl_cert.pem                |   26 +
+ src/greentest/3.8/ssl_key.passwd.pem          |   42 +
+ src/greentest/3.8/ssl_key.pem                 |   40 +
+ src/greentest/3.8/talos-2019-0758.pem         |   22 +
+ src/greentest/3.8/test_asyncore.py            |  834 +++
+ src/greentest/3.8/test_ftplib.py              | 1093 +++
+ src/greentest/3.8/test_httplib.py             | 1977 ++++++
+ src/greentest/3.8/test_select.py              |   81 +
+ src/greentest/3.8/test_selectors.py           |  564 ++
+ src/greentest/3.8/test_smtpd.py               | 1013 +++
+ src/greentest/3.8/test_socket.py              | 6278 +++++++++++++++++
+ src/greentest/3.8/test_ssl.py                 | 4652 ++++++++++++
+ src/greentest/3.8/test_subprocess.py          | 3330 +++++++++
+ src/greentest/3.8/test_threading.py           | 1382 ++++
+ src/greentest/3.8/test_wsgiref.py             |  867 +++
+ src/greentest/3.8/version                     |    1 +
+ 45 files changed, 23756 insertions(+), 14 deletions(-)
+ create mode 100644 src/greentest/3.8/allsans.pem
+ create mode 100644 src/greentest/3.8/badcert.pem
+ create mode 100644 src/greentest/3.8/badkey.pem
+ create mode 100644 src/greentest/3.8/capath/4e1295a3.0
+ create mode 100644 src/greentest/3.8/capath/5ed36f99.0
+ create mode 100644 src/greentest/3.8/capath/6e88d7b8.0
+ create mode 100644 src/greentest/3.8/capath/99d0fa06.0
+ create mode 100644 src/greentest/3.8/capath/b1930218.0
+ create mode 100644 src/greentest/3.8/capath/ceff1710.0
+ create mode 100644 src/greentest/3.8/ffdh3072.pem
+ create mode 100644 src/greentest/3.8/idnsans.pem
+ create mode 100644 src/greentest/3.8/keycert.passwd.pem
+ create mode 100644 src/greentest/3.8/keycert.pem
+ create mode 100644 src/greentest/3.8/keycert2.pem
+ create mode 100644 src/greentest/3.8/keycert3.pem
+ create mode 100644 src/greentest/3.8/keycert4.pem
+ create mode 100644 src/greentest/3.8/keycertecc.pem
+ create mode 100644 src/greentest/3.8/nokia.pem
+ create mode 100644 src/greentest/3.8/nullbytecert.pem
+ create mode 100644 src/greentest/3.8/nullcert.pem
+ create mode 100644 src/greentest/3.8/pycacert.pem
+ create mode 100644 src/greentest/3.8/pycakey.pem
+ create mode 100644 src/greentest/3.8/revocation.crl
+ create mode 100644 src/greentest/3.8/secp384r1.pem
+ create mode 100644 src/greentest/3.8/selfsigned_pythontestdotnet.pem
+ create mode 100644 src/greentest/3.8/ssl_cert.pem
+ create mode 100644 src/greentest/3.8/ssl_key.passwd.pem
+ create mode 100644 src/greentest/3.8/ssl_key.pem
+ create mode 100644 src/greentest/3.8/talos-2019-0758.pem
+ create mode 100644 src/greentest/3.8/test_asyncore.py
+ create mode 100644 src/greentest/3.8/test_ftplib.py
+ create mode 100644 src/greentest/3.8/test_httplib.py
+ create mode 100644 src/greentest/3.8/test_select.py
+ create mode 100644 src/greentest/3.8/test_selectors.py
+ create mode 100644 src/greentest/3.8/test_smtpd.py
+ create mode 100644 src/greentest/3.8/test_socket.py
+ create mode 100644 src/greentest/3.8/test_ssl.py
+ create mode 100644 src/greentest/3.8/test_subprocess.py
+ create mode 100644 src/greentest/3.8/test_threading.py
+ create mode 100644 src/greentest/3.8/test_wsgiref.py
+ create mode 100644 src/greentest/3.8/version
+
+=== SKIPPED ===
+From e349789fff94418ff363c3d7ba8d4cf4a5bcd798 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Fri, 6 Sep 2019 18:27:34 -0500
+Subject: [PATCH 3/9] Fix lint.
+
+---
+ src/gevent/tests/test__core_fork.py | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/gevent/tests/test__core_fork.py b/src/gevent/tests/test__core_fork.py
+index 5717cf7d9..20dc2a4d1 100644
+--- a/src/gevent/tests/test__core_fork.py
++++ b/src/gevent/tests/test__core_fork.py
+@@ -6,7 +6,6 @@
+ import multiprocessing
+ 
+ import gevent
+-from gevent._compat import MAC
+ 
+ hub = gevent.get_hub()
+ pid = os.getpid()
+
+From 5c5d2bc660b599256734a9f5c9e58c79ec4f1b1b Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Fri, 6 Sep 2019 18:28:24 -0500
+Subject: [PATCH 4/9] Fix the other place that refs the version in .travis.yml.
+
+---
+ .travis.yml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+#diff --git a/.travis.yml b/.travis.yml
+#index 05dc24b12..c956f6ae7 100644
+#--- a/.travis.yml
+#+++ b/.travis.yml
+#@@ -284,10 +284,10 @@ jobs:
+#     # 3.8
+#     - <<: *test-libuv-jobs
+#       env: TRAVIS_PYTHON_VERSION=3.8
+#-      name: libuv36
+#+      name: libuv38
+#     - <<: *test-libev-jobs
+#       env: TRAVIS_PYTHON_VERSION=3.8
+#-      name: libev-cffi36
+#+      name: libev-cffi38
+# 
+# 
+#     # 2.7, no-embed. Run the tests that exercise the libraries we
+#
+From 0a45f740f3afce22c88fd7f9dbe5e30aa7d95336 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Fri, 6 Sep 2019 18:48:09 -0500
+Subject: [PATCH 5/9] Fix false detection in test__all__.
+
+---
+ .travis.yml              |  7 +++++--
+ src/gevent/subprocess.py | 45 ++++++++++++++++++++++++----------------
+ 2 files changed, 32 insertions(+), 20 deletions(-)
+
+#diff --git a/.travis.yml b/.travis.yml
+#index c956f6ae7..f676bb6e7 100644
+#--- a/.travis.yml
+#+++ b/.travis.yml
+#@@ -198,9 +198,12 @@ jobs:
+#     # We only need to do this on one version, and it should be Python 3, because
+#     # pylint has stopped updating for Python 2.
+#     - stage: test
+#-      # We need pylint, since above we're not installing a requirements file
+#+      # We need pylint, since above we're not installing a
+#+      # requirements file. Code added to _ssl3.SSLContext for Python
+#+      # 3.8 triggers an infinite recursion bug in pylint 2.3.1/astroid 2.2.5
+#+      # unless we disable inference.
+#       install: pip install pylint
+#-      script: python -m pylint --rcfile=.pylintrc gevent
+#+      script: python -m pylint --limit-inference-results=1 --rcfile=.pylintrc gevent
+#       env: TRAVIS_PYTHON_VERSION=3.7
+#       name: lint37
+# 
+#diff --git a/src/gevent/subprocess.py b/src/gevent/subprocess.py
+#index 9b4d13cd2..ed22d863b 100644
+#--- a/src/gevent/subprocess.py
+#+++ b/src/gevent/subprocess.py
+#@@ -70,24 +70,6 @@
+#     __implements__.append("_posixsubprocess")
+#     _posixsubprocess = None
+# 
+#-if PY38:
+#-    # Using os.posix_spawn() to start subprocesses
+#-    # bypasses our child watchers on certain operating systems,
+#-    # and with certain library versions. Possibly the right
+#-    # fix is to monkey-patch os.posix_spawn like we do os.fork?
+#-    # These have no effect, they're just here to match the stdlib.
+#-    # TODO: When available, given a monkey patch on them, I think
+#-    # we ought to be able to use them if the stdlib has identified them
+#-    # as suitable.
+#-    __implements__.extend([
+#-        '_use_posix_spawn',
+#-        '_USE_POSIX_SPAWN'
+#-    ])
+#-
+#-    def _use_posix_spawn():
+#-        return False
+#-
+#-    _USE_POSIX_SPAWN = False
+# 
+# # Some symbols we define that we expect to export;
+# # useful for static analysis
+#@@ -183,6 +165,33 @@ def _use_posix_spawn():
+#         'CREATE_BREAKAWAY_FROM_JOB'
+#     ])
+# 
+#+if PY38:
+#+    # Using os.posix_spawn() to start subprocesses
+#+    # bypasses our child watchers on certain operating systems,
+#+    # and with certain library versions. Possibly the right
+#+    # fix is to monkey-patch os.posix_spawn like we do os.fork?
+#+    # These have no effect, they're just here to match the stdlib.
+#+    # TODO: When available, given a monkey patch on them, I think
+#+    # we ought to be able to use them if the stdlib has identified them
+#+    # as suitable.
+#+    __implements__.extend([
+#+        '_use_posix_spawn',
+#+    ])
+#+
+#+    def _use_posix_spawn():
+#+        return False
+#+
+#+    _USE_POSIX_SPAWN = False
+#+
+#+    if __subprocess__._USE_POSIX_SPAWN:
+#+        __implements__.extend([
+#+            '_USE_POSIX_SPAWN',
+#+        ])
+#+    else:
+#+        __imports__.extend([
+#+            '_USE_POSIX_SPAWN',
+#+        ])
+#+
+# actually_imported = copy_globals(__subprocess__, globals(),
+#                                  only_names=__imports__,
+#                                  ignore_missing_names=True)
+#
+From 412d59d0889bf0d1221c52d902a98a7648f0a829 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Sat, 7 Sep 2019 07:04:09 -0500
+Subject: [PATCH 6/9] Hmm, why is test__core giving fits on py38/libuv/travis?
+ Can't reproduce locally.
+
+---
+ appveyor.yml                        |  1 +
+ src/gevent/libuv/_corecffi_source.c | 16 +++++++++-------
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+#diff --git a/appveyor.yml b/appveyor.yml
+#index 3e5f84f78..ee660e472 100644
+#--- a/appveyor.yml
+#+++ b/appveyor.yml
+#@@ -11,6 +11,7 @@ environment:
+#     # too often we get failures to resolve DNS names or failures
+#     # to connect on AppVeyor.
+#     GEVENTTEST_USE_RESOURCES: "-network"
+#+    PYTHONTRACEMALLOC: 10
+# 
+#   matrix:
+# 
+diff --git a/src/gevent/libuv/_corecffi_source.c b/src/gevent/libuv/_corecffi_source.c
+index 83fe82ee9..3b4b8d156 100644
+--- a/src/gevent/libuv/_corecffi_source.c
++++ b/src/gevent/libuv/_corecffi_source.c
+@@ -150,32 +150,34 @@ static void _gevent_fs_poll_callback3(void* handlep, int status, const uv_stat_t
+ 
+ static void gevent_uv_walk_callback_close(uv_handle_t* handle, void* arg)
+ {
+-	if( handle && !uv_is_closing(handle) ) {
+-		uv_close(handle, NULL);
+-	}
++    if( handle && !uv_is_closing(handle) ) {
++	uv_close(handle, NULL);
++    }
+ }
+ 
+ static void gevent_close_all_handles(uv_loop_t* loop)
+ {
++    if (loop) {
+ 	uv_walk(loop, gevent_uv_walk_callback_close, NULL);
++    }
+ }
+ 
+ static void gevent_zero_timer(uv_timer_t* handle)
+ {
+-	memset(handle, 0, sizeof(uv_timer_t));
++    memset(handle, 0, sizeof(uv_timer_t));
+ }
+ 
+ static void gevent_zero_check(uv_check_t* handle)
+ {
+-	memset(handle, 0, sizeof(uv_check_t));
++    memset(handle, 0, sizeof(uv_check_t));
+ }
+ 
+ static void gevent_zero_prepare(uv_prepare_t* handle)
+ {
+-	memset(handle, 0, sizeof(uv_prepare_t));
++    memset(handle, 0, sizeof(uv_prepare_t));
+ }
+ 
+ static void gevent_zero_loop(uv_loop_t* handle)
+ {
+-	memset(handle, 0, sizeof(uv_loop_t));
++    memset(handle, 0, sizeof(uv_loop_t));
+ }
+
+From e52ac513ef66dba47f5312f1870fe2e5b020cb19 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Sat, 7 Sep 2019 07:44:37 -0500
+Subject: [PATCH 7/9] Disable that failing test on 3.8b4 for now.
+
+---
+ src/gevent/tests/test__core.py   |  7 +++++++
+ src/gevent/tests/test__socket.py | 21 ++++++++++-----------
+ 2 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/gevent/tests/test__core.py b/src/gevent/tests/test__core.py
+index 1816e0f89..c538ee7aa 100644
+--- a/src/gevent/tests/test__core.py
++++ b/src/gevent/tests/test__core.py
+@@ -2,6 +2,7 @@
+ from __future__ import absolute_import, print_function, division
+ 
+ import unittest
++import sys
+ import gevent.testing as greentest
+ 
+ from gevent import core
+@@ -128,6 +129,12 @@ def destroyOne(self, loop):
+     "See https://ci.appveyor.com/project/denik/gevent/build/1.0.1380/job/lrlvid6mkjtyrhn5#L1103 "
+     "It has also timed out, but only on Appveyor CPython 3.6; local CPython 3.6 does not. "
+     "See https://ci.appveyor.com/project/denik/gevent/build/1.0.1414/job/yn7yi8b53vtqs8lw#L1523")
++@greentest.skipIf(
++    greentest.LIBUV and greentest.RUNNING_ON_TRAVIS and sys.version_info == (3, 8, 0, 'beta', 4),
++    "Crashes on 3.8.0b4 on TravisCI. "
++    "(https://travis-ci.org/gevent/gevent/jobs/582031266#L215) "
++    "Unable to reproduce locally so far on macOS."
++)
+ class TestWatchersDefaultDestroyed(TestWatchers):
+ 
+     def _makeOne(self):
+#diff --git a/src/gevent/tests/test__socket.py b/src/gevent/tests/test__socket.py
+#index 48f6ee3ed..4a670cdb0 100644
+#--- a/src/gevent/tests/test__socket.py
+#+++ b/src/gevent/tests/test__socket.py
+#@@ -3,15 +3,15 @@
+# from gevent import monkey; monkey.patch_all()
+# 
+# import sys
+#-import os
+# import array
+# import socket
+#-import traceback
+# import time
+# import unittest
+#-import gevent.testing as greentest
+# from functools import wraps
+# 
+#+from gevent import get_hub
+#+import gevent.testing as greentest
+#+
+# from gevent.testing import six
+# from gevent.testing import LARGE_TIMEOUT
+# from gevent.testing import support
+#@@ -34,8 +34,7 @@ def errors_are_fatal(*args, **kwargs):
+#             try:
+#                 return target(*args, **kwargs)
+#             except: # pylint:disable=bare-except
+#-                traceback.print_exc()
+#-                os._exit(2)
+#+                get_hub().throw(*sys.exc_info())
+# 
+#         _Thread.__init__(self, target=errors_are_fatal, **kwargs)
+#         self.start()
+#@@ -91,18 +90,17 @@ def _test_sendall(self, data, match_data=None, client_method='sendall',
+# 
+#         def accept_and_read():
+#             conn = None
+#+            r = None
+#             try:
+#                 conn, _ = self.listener.accept()
+#                 r = conn.makefile(mode='rb')
+#                 read_data.append(r.read())
+#                 r.flush()
+#                 r.close()
+#-            except: # pylint:disable=bare-except
+#-                server_exc_info.append(sys.exc_info())
+#             finally:
+#-                if conn:
+#-                    conn.close()
+#-                self.listener.close()
+#+                for f in (conn, r, self.listener):
+#+                    if f is not None:
+#+                        f.close()
+# 
+#         server = Thread(target=accept_and_read)
+#         client = self.create_connection(**client_args)
+#@@ -114,9 +112,10 @@ def accept_and_read():
+#             client.close()
+# 
+#         server.join()
+#+        assert not server.is_alive()
+#         if match_data is None:
+#             match_data = self.long_data
+#-        self.assertEqual(read_data[0], match_data)
+#+        self.assertEqual(read_data, [match_data])
+# 
+#         if server_exc_info:
+#             six.reraise(*server_exc_info[0])
+#
+From 271e58658f7cc839dcde74239c66d1d396d675b7 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Sat, 7 Sep 2019 09:02:12 -0500
+Subject: [PATCH 8/9] Whoops, fix Python 2.
+
+---
+ src/gevent/tests/test__greenness.py | 23 +++++++++++++----------
+ src/gevent/tests/test__socket.py    | 13 ++++++++-----
+ src/gevent/tests/test__ssl.py       |  3 ++-
+ 3 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/src/gevent/tests/test__greenness.py b/src/gevent/tests/test__greenness.py
+index da4fc948e..71392971f 100644
+--- a/src/gevent/tests/test__greenness.py
++++ b/src/gevent/tests/test__greenness.py
+@@ -29,13 +29,15 @@
+ import gevent.testing as greentest
+ 
+ try:
+-    import urllib2
+-except ImportError:
+     from urllib import request as urllib2
+-try:
+-    import BaseHTTPServer
+-except ImportError:
+     from http import server as BaseHTTPServer
++    from http.server import SimpleHTTPRequestHandler
++except ImportError:
++    # Python 2
++    import urllib2
++    import BaseHTTPServer
++    from SimpleHTTPServer import SimpleHTTPRequestHandler
++
+ 
+ import gevent
+ from gevent.testing import params
+@@ -47,7 +49,8 @@ class TestGreenness(greentest.TestCase):
+     def setUp(self):
+         server_address = params.DEFAULT_BIND_ADDR_TUPLE
+         BaseHTTPServer.BaseHTTPRequestHandler.protocol_version = "HTTP/1.0"
+-        self.httpd = BaseHTTPServer.HTTPServer(server_address, BaseHTTPServer.BaseHTTPRequestHandler)
++        self.httpd = BaseHTTPServer.HTTPServer(server_address,
++                                               SimpleHTTPRequestHandler)
+         self.httpd.request_count = 0
+ 
+     def tearDown(self):
+@@ -62,10 +65,10 @@ def test_urllib2(self):
+         server = gevent.spawn(self.serve)
+ 
+         port = self.httpd.socket.getsockname()[1]
+-        with self.assertRaises(urllib2.HTTPError) as exc:
+-            urllib2.urlopen('http://127.0.0.1:%s' % port)
+-        self.assertEqual(exc.exception.code, 501)
+-        server.get(0.01)
++        rsp = urllib2.urlopen('http://127.0.0.1:%s' % port)
++        rsp.read()
++        rsp.close()
++        server.join()
+         self.assertEqual(self.httpd.request_count, 1)
+ 
+ 
+#diff --git a/src/gevent/tests/test__socket.py b/src/gevent/tests/test__socket.py
+#index 4a670cdb0..195ef1af5 100644
+#--- a/src/gevent/tests/test__socket.py
+#+++ b/src/gevent/tests/test__socket.py
+#@@ -9,7 +9,7 @@
+# import unittest
+# from functools import wraps
+# 
+#-from gevent import get_hub
+#+from gevent import getcurrent
+# import gevent.testing as greentest
+# 
+# from gevent.testing import six
+#@@ -34,7 +34,7 @@ def errors_are_fatal(*args, **kwargs):
+#             try:
+#                 return target(*args, **kwargs)
+#             except: # pylint:disable=bare-except
+#-                get_hub().throw(*sys.exc_info())
+#+                getcurrent().parent.throw(*sys.exc_info())
+# 
+#         _Thread.__init__(self, target=errors_are_fatal, **kwargs)
+#         self.start()
+#@@ -95,13 +95,16 @@ def accept_and_read():
+#                 conn, _ = self.listener.accept()
+#                 r = conn.makefile(mode='rb')
+#                 read_data.append(r.read())
+#-                r.flush()
+#-                r.close()
+#             finally:
+#-                for f in (conn, r, self.listener):
+#+                # Order matters. On Python 2, if we close the
+#+                # connection before closing the makefile,
+#+                # test__ssl fails because the underlying socket
+#+                # has been deleted.
+#+                for f in (r, conn, self.listener):
+#                     if f is not None:
+#                         f.close()
+# 
+#+
+#         server = Thread(target=accept_and_read)
+#         client = self.create_connection(**client_args)
+# 
+#diff --git a/src/gevent/tests/test__ssl.py b/src/gevent/tests/test__ssl.py
+#index 97b70bd98..537e70773 100644
+#--- a/src/gevent/tests/test__ssl.py
+#+++ b/src/gevent/tests/test__ssl.py
+#@@ -1,3 +1,4 @@
+#+from __future__ import print_function, division, absolute_import
+# from gevent import monkey; monkey.patch_all()
+# import os
+# 
+#@@ -5,7 +6,7 @@
+# import gevent.testing as greentest
+# # Be careful not to have TestTCP as a bare attribute in this module,
+# # even aliased, to avoid running duplicate tests
+#-import test__socket
+#+from gevent.tests import test__socket
+# import ssl
+# 
+# 
+#
+From 158ccf26ff07af1c0737307f67ed118e7a1d6ac1 Mon Sep 17 00:00:00 2001
+From: Jason Madden <jamadden@gmail.com>
+Date: Sat, 7 Sep 2019 09:27:19 -0500
+Subject: [PATCH 9/9] Implement verify_client_post_handshake; appveyor has TLS
+ 1.3 now so those tests are running there.
+
+---
+ CHANGES.rst                        | 2 ++
+ src/gevent/_ssl3.py                | 5 +++++
+ src/gevent/tests/known_failures.py | 9 +++++++++
+ src/gevent/tests/test__socket.py   | 3 ++-
+ 4 files changed, 18 insertions(+), 1 deletion(-)
+
+#diff --git a/CHANGES.rst b/CHANGES.rst
+#index 53f4398d2..a4ab7a7ab 100644
+#--- a/CHANGES.rst
+#+++ b/CHANGES.rst
+#@@ -16,6 +16,8 @@
+# 
+# - Improve the way joining the main thread works on Python 3.
+# 
+#+- Implement ``SSLSocket.verify_client_post_handshake()`` when available.
+#+
+# 1.5a1 (2019-05-02)
+# ==================
+# 
+diff --git a/src/gevent/_ssl3.py b/src/gevent/_ssl3.py
+index d3de81034..29988cff0 100644
+--- a/src/gevent/_ssl3.py
++++ b/src/gevent/_ssl3.py
+@@ -678,6 +678,11 @@ def get_channel_binding(self, cb_type="tls-unique"):
+             return None
+         return self._sslobj.tls_unique_cb()
+ 
++    def verify_client_post_handshake(self):
++        # Only present in 3.7.1+; an attributeerror is alright
++        if self._sslobj:
++            return self._sslobj.verify_client_post_handshake()
++        raise ValueError("No SSL wrapper around " + str(self))
+ 
+ # Python does not support forward declaration of types
+ SSLContext.sslsocket_class = SSLSocket
+diff --git a/src/gevent/tests/known_failures.py b/src/gevent/tests/known_failures.py
+index eb1db0da1..d5f38ba91 100644
+--- a/src/gevent/tests/known_failures.py
++++ b/src/gevent/tests/known_failures.py
+@@ -351,6 +351,15 @@
+     'test__example_webproxy.py',
+ ]
+ 
++if APPVEYOR:
++    # Strange failures sometimes, but only on Python 3.7, reporting
++    # "ConnectionAbortedError: [WinError 10053] An established
++    # connection was aborted by the software in your host machine"
++    # when we've done no such thing. Try running not in parallel
++    RUN_ALONE += [
++        'test__ssl.py',
++        'test__server.py',
++    ]
+ 
+ 
+ if APPVEYOR or TRAVIS:
+#diff --git a/src/gevent/tests/test__socket.py b/src/gevent/tests/test__socket.py
+#index 195ef1af5..4976d5767 100644
+#--- a/src/gevent/tests/test__socket.py
+#+++ b/src/gevent/tests/test__socket.py
+#@@ -29,12 +29,13 @@ class Thread(_Thread):
+# 
+#     def __init__(self, **kwargs):
+#         target = kwargs.pop('target')
+#+        caller = getcurrent()
+#         @wraps(target)
+#         def errors_are_fatal(*args, **kwargs):
+#             try:
+#                 return target(*args, **kwargs)
+#             except: # pylint:disable=bare-except
+#-                getcurrent().parent.throw(*sys.exc_info())
+#+                caller.throw(*sys.exc_info())
+# 
+#         _Thread.__init__(self, target=errors_are_fatal, **kwargs)
+#         self.start()
+--- gevent-1.4.0/src/gevent/thread.py.orig	2019-01-04 12:51:44.000000000 +0100
++++ gevent-1.4.0/src/gevent/thread.py	2020-01-03 21:14:08.922889769 +0100
+@@ -31,6 +31,8 @@
+                     'exit_thread',
+                     'interrupt_main',
+                     'start_new']
++    if sys.version_info[:2] >= (3, 8):
++        __imports__.append('get_native_id')
+ error = __thread__.error
+ from gevent._compat import PY3
+ from gevent._compat import PYPY
+--- gevent-1.4.0/src/gevent/_tblib.py.orig	2019-01-04 12:51:44.000000000 +0100
++++ gevent-1.4.0/src/gevent/_tblib.py	2020-01-03 21:25:28.152543399 +0100
+@@ -198,6 +198,9 @@
+         while current:
+             f_code = current.tb_frame.f_code
+             code = compile('\n' * (current.tb_lineno - 1) + 'raise __traceback_maker', current.tb_frame.f_code.co_filename, 'exec')
+-            if PY3:
++            if hasattr(code, "replace"):
++                # Python 3.8 and newer
++                code = code.replace(co_argcount=0, co_freevars=(), co_cellvars=())
++            elif PY3:
+                 code = CodeType(
+                     0, code.co_kwonlyargcount,
+--- gevent-1.4.0/src/gevent/_socketcommon.py.orig	2019-01-04 12:51:44.000000000 +0100
++++ gevent-1.4.0/src/gevent/_socketcommon.py	2020-01-06 15:00:51.236688228 +0100
+@@ -74,6 +74,12 @@
+ from gevent._compat import string_types, integer_types, PY3
+ from gevent._util import copy_globals
+ 
++if sys.version_info[:2] >= (3, 8):
++    __imports__.extend([
++        'create_server',
++        'has_dualstack_ipv6'
++    ])
++
+ is_windows = sys.platform == 'win32'
+ is_macos = sys.platform == 'darwin'
+ 

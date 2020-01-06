@@ -7,9 +7,10 @@
 #	  (now excluded via known_failures-pld.patch)
 
 # Conditional build:
-%bcond_without	tests		# do not run tests
-%bcond_with	system_libev	# build with system libev [test__core_stat.py test fails]
-%bcond_without	system_c_ares	# build with system c_ares
+%bcond_without	doc		# Sphinx documentation
+%bcond_without	tests		# testing
+%bcond_with	system_libev	# system libev [test__core_stat.py test fails]
+%bcond_without	system_c_ares	# system c_ares
 %bcond_without	python2		# CPython 2.x module
 %bcond_without	python3		# CPython 3.x module
 
@@ -17,47 +18,64 @@
 Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
-Version:	1.3.7
-Release:	2
+Version:	1.4.0
+Release:	1
 Epoch:		1
 License:	MIT
 Group:		Development/Languages
-#Source0Download: https://pypi.python.org/simple/gevent
+#Source0Download: https://pypi.org/simple/gevent/
 Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	5d3f61ef4bb40fdbd5cbaac7f0d2e585
+# Source0-md5:	6b9dd98917061803d9158e5258b8f412
 Patch0:		known_failures-pld.patch
-Patch1:		%{name}-tests.patch
+Patch1:		%{name}-py3.8.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.23}
-BuildRequires:	python-Cython >= 0.28.5
 %if %{with python2}
-BuildRequires:	python-cffi >= 1.3.0
+BuildRequires:	python-Cython >= 0.29
+BuildRequires:	python-cffi >= 1.11.5
 BuildRequires:	python-devel >= 1:2.7
 BuildRequires:	python-greenlet-devel >= 0.4.15
 %if %{with tests}
 BuildRequires:	python-coverage >= 4.0
 BuildRequires:	python-devel-src >= 1:2.7
+BuildRequires:	python-dns
+BuildRequires:	python-futures
 BuildRequires:	python-greenlet >= 0.4.15
+BuildRequires:  python-mock
 BuildRequires:  python-objgraph
-BuildRequires:	python-setuptools
+BuildRequires:  python-psutil
+BuildRequires:  python-requests
+BuildRequires:	python-setuptools >= 1:24.2.0
 BuildRequires:	python-test
+BuildRequires:	python-zope.event
+BuildRequires:	python-zope.interface
 %endif
 %endif
 %if %{with python3}
-BuildRequires:	python3-cffi >= 1.3.0
-BuildRequires:	python3-devel >= 1:3.3
+BuildRequires:	python3-Cython >= 0.29
+BuildRequires:	python3-cffi >= 1.11.5
+BuildRequires:	python3-devel >= 1:3.4
 BuildRequires:	python3-greenlet-devel >= 0.4.15
 %if %{with tests}
 BuildRequires:	python3-coverage >= 4.0
-BuildRequires:	python3-greenlet >= 0.4.10
+BuildRequires:	python3-dns
+BuildRequires:	python3-greenlet >= 0.4.15
 BuildRequires:  python3-objgraph
-BuildRequires:	python3-setuptools
+BuildRequires:  python3-psutil
+BuildRequires:  python3-requests
+BuildRequires:	python3-setuptools >= 1:24.2.0
 BuildRequires:	python3-test
+BuildRequires:	python3-zope.event
+BuildRequires:	python3-zope.interface
 %endif
 %endif
 BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.714
+%if %{with doc}
+BuildRequires:	python3-repoze.sphinx.autointerface
+BuildRequires:	sphinx-pdg
+%endif
 %{?with_system_libev:Requires:	libev >= 4.23}
 Requires:	python-greenlet >= 0.4.15
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
@@ -113,17 +131,29 @@ możliwości to m.in.
 - możliwość wykorzystania biblioteki standardowej lub modułów innych
   producentów napisanych dla standardowych gniazd blokujących
 
+%package apidocs
+Summary:	API documentation for Python gevent module
+Summary(pl.UTF-8):	Dokumentacja API modułu Pythona gevent
+Group:		Documentation
+
+%description apidocs
+API documentation for Python gevent module.
+
+%description apidocs -l pl.UTF-8
+Dokumentacja API modułu Pythona gevent.
+
 %prep
 %setup -q -n %{module}-%{version}
 %patch0 -p1
-%patch1 -p1 -b .orig
+%patch1 -p1
 
-%build
+find . -type f -name '*.orig' | xargs -r %{__rm}
 
 # force rebuild of Cython-generated files
 # they depend on specific deps (e.g. greenlet) versions
-rm src/gevent/{*.c,resolver/cares.c}
+%{__rm} src/gevent/{*.c,resolver/cares.c}
 
+%build
 # must be exported to work (py*_build macro is not single invocation)
 %{?with_system_libev:export LIBEV_EMBED=false}
 %{?with_system_c_ares:export CARES_EMBED=false}
@@ -132,10 +162,8 @@ rm src/gevent/{*.c,resolver/cares.c}
 %py_build
 
 %if %{with tests}
-PKGDIR=$(echo $PWD/build-2/lib.*)
-cd src/greentest
-PYTHONPATH=$PKGDIR %{__python} testrunner.py --config known_failures.py
-cd ../..
+PYTHONPATH=$(echo $PWD/build-2/lib.*) \
+%{__python} -m gevent.tests
 %endif
 %endif
 
@@ -143,11 +171,15 @@ cd ../..
 %py3_build
 
 %if %{with tests}
-PKGDIR=$(echo $PWD/build-3/lib.*)
-cd src/greentest
-PYTHONPATH=$PKGDIR %{__python3} testrunner.py --config known_failures.py
-cd ../..
+PYTHONPATH=$(echo $PWD/build-3/lib.*) \
+%{__python3} -m gevent.tests
 %endif
+%endif
+
+%if %{with doc}
+PYTHONPATH=$(echo $PWD/build-2/lib.*) \
+%{__make} -C doc html \
+	SPHINXBUILD=sphinx-build-2
 %endif
 
 %install
@@ -160,15 +192,17 @@ rm -rf $RPM_BUILD_ROOT
 %py_install
 
 %py_postclean
-%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*.c
-%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*/*.{c,h,pyx}
+%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*.{c,html}
+%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*/*.{c,h,html,pyx}
+%{__rm} -r $RPM_BUILD_ROOT%{py_sitedir}/gevent/{testing,tests}
 %endif
 
 %if %{with python3}
 %py3_install
 
-%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*.c
-%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*/*.{c,h,pyx}
+%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*.{c,html}
+%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*/*.{c,h,html,pyx}
+%{__rm} -r $RPM_BUILD_ROOT%{py3_sitedir}/gevent/{testing,tests}
 %endif
 
 %clean
@@ -177,7 +211,7 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with python2}
 %files
 %defattr(644,root,root,755)
-%doc AUTHORS LICENSE NOTICE README.rst TODO
+%doc AUTHORS CHANGES.rst LICENSE NOTICE README.rst TODO
 %dir %{py_sitedir}/gevent
 %attr(755,root,root) %{py_sitedir}/gevent/*.so
 %{py_sitedir}/gevent/*.pxd
@@ -202,7 +236,7 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with python3}
 %files -n python3-%{module}
 %defattr(644,root,root,755)
-%doc AUTHORS LICENSE NOTICE README.rst TODO
+%doc AUTHORS CHANGES.rst LICENSE NOTICE README.rst TODO
 %dir %{py3_sitedir}/gevent
 %attr(755,root,root) %{py3_sitedir}/gevent/*.cpython-*.so
 %{py3_sitedir}/gevent/__pycache__
@@ -227,4 +261,10 @@ rm -rf $RPM_BUILD_ROOT
 %{py3_sitedir}/gevent/resolver/libcares.pxd
 %attr(755,root,root) %{py3_sitedir}/gevent/resolver/cares.*.so
 %{py3_sitedir}/gevent-%{version}-py*.egg-info
+%endif
+
+%if %{with doc}
+%files apidocs
+%defattr(644,root,root,755)
+%doc doc/_build/html/{_modules,_static,api,examples,*.html,*.js}
 %endif
