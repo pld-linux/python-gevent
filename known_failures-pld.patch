@@ -1,6 +1,7 @@
---- gevent-1.4.0.orig/src/gevent/tests/known_failures.py	2017-06-05 13:31:50.000000000 +0200
-+++ gevent-1.4.0/src/gevent/tests/known_failures.py	2018-03-05 12:50:16.000000000 +0100
-@@ -33,8 +33,277 @@
+diff -urNp -x '*.orig' gevent-1.4.0.org/src/gevent/tests/known_failures.py gevent-1.4.0/src/gevent/tests/known_failures.py
+--- gevent-1.4.0.org/src/gevent/tests/known_failures.py	2019-01-04 12:51:44.000000000 +0100
++++ gevent-1.4.0/src/gevent/tests/known_failures.py	2021-03-05 09:43:56.691802201 +0100
+@@ -30,8 +30,277 @@ FAILING_TESTS = [
      # we don't have that option without a new commit---and sometimes we really need a build
      # to succeed in order to get a release wheel
      'FLAKY test__issue6.py',
@@ -278,4 +279,4 @@
 +]
  
  if sys.platform == 'win32':
-     # other Windows-related issues (need investigating)
+     IGNORED_TESTS = [
