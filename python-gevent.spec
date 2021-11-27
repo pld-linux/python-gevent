@@ -191,16 +191,12 @@ rm -rf $RPM_BUILD_ROOT
 %py_install
 
 %py_postclean
-%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*.{c,html}
-%{__rm} $RPM_BUILD_ROOT%{py_sitedir}/gevent/*/*.{c,h,html,pyx}
 %{__rm} -r $RPM_BUILD_ROOT%{py_sitedir}/gevent/{testing,tests}
 %endif
 
 %if %{with python3}
 %py3_install
 
-%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*.{c,html}
-%{__rm} $RPM_BUILD_ROOT%{py3_sitedir}/gevent/*/*.{c,h,html,pyx}
 %{__rm} -r $RPM_BUILD_ROOT%{py3_sitedir}/gevent/{testing,tests}
 %endif
 
@@ -213,20 +209,17 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS CHANGES.rst LICENSE NOTICE README.rst TODO
 %dir %{py_sitedir}/gevent
 %attr(755,root,root) %{py_sitedir}/gevent/*.so
-%{py_sitedir}/gevent/*.pxd
 %{py_sitedir}/gevent/*.py[co]
 %dir %{py_sitedir}/gevent/_ffi
 %{py_sitedir}/gevent/_ffi/*.py[co]
 %dir %{py_sitedir}/gevent/libev
 %attr(755,root,root) %{py_sitedir}/gevent/libev/_corecffi.so
 %attr(755,root,root) %{py_sitedir}/gevent/libev/corecext.so
-%{py_sitedir}/gevent/libev/libev.pxd
 %{py_sitedir}/gevent/libev/*.py[co]
 %dir %{py_sitedir}/gevent/libuv
 %{py_sitedir}/gevent/libuv/*.py[co]
 %attr(755,root,root) %{py_sitedir}/gevent/libuv/_corecffi.so
 %dir %{py_sitedir}/gevent/resolver
-%{py_sitedir}/gevent/resolver/libcares.pxd
 %{py_sitedir}/gevent/resolver/*.py[co]
 %attr(755,root,root) %{py_sitedir}/gevent/resolver/cares.so
 %{py_sitedir}/gevent-%{version}-py%{py_ver}.egg-info
@@ -239,7 +232,6 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{py3_sitedir}/gevent
 %attr(755,root,root) %{py3_sitedir}/gevent/*.cpython-*.so
 %{py3_sitedir}/gevent/__pycache__
-%{py3_sitedir}/gevent/*.pxd
 %{py3_sitedir}/gevent/*.py
 %dir %{py3_sitedir}/gevent/_ffi
 %{py3_sitedir}/gevent/_ffi/__pycache__
@@ -252,12 +244,10 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{py3_sitedir}/gevent/libev/_corecffi.abi3.so
 %attr(755,root,root) %{py3_sitedir}/gevent/libev/corecext.cpython-*.so
 %{py3_sitedir}/gevent/libev/__pycache__
-%{py3_sitedir}/gevent/libev/libev.pxd
 %{py3_sitedir}/gevent/libev/*.py
 %dir %{py3_sitedir}/gevent/resolver
 %{py3_sitedir}/gevent/resolver/__pycache__
 %{py3_sitedir}/gevent/resolver/*.py
-%{py3_sitedir}/gevent/resolver/libcares.pxd
 %attr(755,root,root) %{py3_sitedir}/gevent/resolver/cares.*.so
 %{py3_sitedir}/gevent-%{version}-py*.egg-info
 %endif
@@ -265,5 +255,5 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with doc}
 %files apidocs
 %defattr(644,root,root,755)
-%doc doc/_build/html/{_modules,_static,api,examples,*.html,*.js}
+%doc docs/_build/html/{_modules,_static,api,examples,*.html,*.js}
 %endif
