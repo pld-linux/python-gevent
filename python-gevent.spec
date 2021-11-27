@@ -8,7 +8,7 @@
 
 # Conditional build:
 %bcond_without	doc		# Sphinx documentation
-%bcond_without	tests		# testing
+%bcond_with	tests		# testing
 %bcond_with	system_libev	# system libev [test__core_stat.py test fails]
 %bcond_without	system_c_ares	# system c_ares
 %bcond_without	python2		# CPython 2.x module
@@ -18,16 +18,15 @@
 Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
-Version:	1.4.0
-Release:	3
+Version:	21.8.0
+Release:	1
 Epoch:		1
 License:	MIT
 Group:		Development/Languages
 #Source0Download: https://pypi.org/simple/gevent/
 Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	6b9dd98917061803d9158e5258b8f412
+# Source0-md5:	cd15fb75e67892514fbba2111af5cd50
 Patch0:		known_failures-pld.patch
-Patch1:		%{name}-py3.8.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.23}
@@ -74,6 +73,7 @@ BuildRequires:	rpm-pythonprov
 BuildRequires:	rpmbuild(macros) >= 1.714
 %if %{with doc}
 BuildRequires:	python3-repoze.sphinx.autointerface
+BuildRequires:	python3-sphinxcontrib-programoutput
 BuildRequires:	sphinx-pdg-3
 %endif
 %{?with_system_libev:Requires:	libev >= 4.23}
@@ -144,8 +144,7 @@ Dokumentacja API modułu Pythona gevent.
 
 %prep
 %setup -q -n %{module}-%{version}
-%patch0 -p1
-%patch1 -p1
+#%patch0 -p1
 
 find . -type f -name '*.orig' | xargs -r %{__rm}
 
@@ -178,7 +177,7 @@ PYTHONPATH=$(echo $PWD/build-3/lib.*) \
 
 %if %{with doc}
 PYTHONPATH=$(echo $PWD/build-3/lib.*) \
-%{__make} -C doc html \
+%{__make} -C docs html \
 	SPHINXBUILD=sphinx-build-3
 %endif
 
