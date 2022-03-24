@@ -18,34 +18,39 @@
 Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
-Version:	21.8.0
+Version:	21.12.0
 Release:	1
 Epoch:		1
 License:	MIT
-Group:		Development/Languages
+Group:		Libraries/Python
 #Source0Download: https://pypi.org/simple/gevent/
 Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{version}.tar.gz
-# Source0-md5:	cd15fb75e67892514fbba2111af5cd50
-Patch0:		known_failures-pld.patch
+# Source0-md5:	84014946a25407706cbe9ecb088f1e9c
+Patch0:		%{name}-sphinx-python3.patch
+Patch1:		known_failures-pld.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.23}
 %if %{with python2}
 BuildRequires:	python-Cython >= 0.29
-BuildRequires:	python-cffi >= 1.11.5
+BuildRequires:	python-cffi >= 1.12.2
 BuildRequires:	python-devel >= 1:2.7
-BuildRequires:	python-greenlet-devel >= 0.4.15
+BuildRequires:	python-greenlet-devel >= 1.1.0
+BuildRequires:	python-greenlet-devel < 2
+BuildRequires:	python-setuptools >= 1:24.2.0
 %if %{with tests}
 BuildRequires:	python-coverage >= 4.0
 BuildRequires:	python-devel-src >= 1:2.7
-BuildRequires:	python-dns
+BuildRequires:	python-dns >= 1.16.0
+BuildRequires:	python-dns < 2
 BuildRequires:	python-futures
-BuildRequires:	python-greenlet >= 0.4.15
+BuildRequires:	python-greenlet >= 1.1.0
+BuildRequires:	python-greenlet < 2
+BuildRequires:  python-idna
 BuildRequires:  python-mock
 BuildRequires:  python-objgraph
-BuildRequires:  python-psutil
+BuildRequires:  python-psutil >= 5.7.0
 BuildRequires:  python-requests
-BuildRequires:	python-setuptools >= 1:24.2.0
 BuildRequires:	python-test
 BuildRequires:	python-zope.event
 BuildRequires:	python-zope.interface
@@ -53,17 +58,21 @@ BuildRequires:	python-zope.interface
 %endif
 %if %{with python3}
 BuildRequires:	python3-Cython >= 0.29
-BuildRequires:	python3-cffi >= 1.11.5
-BuildRequires:	python3-devel >= 1:3.4
-BuildRequires:	python3-greenlet-devel >= 0.4.15
+BuildRequires:	python3-cffi >= 1.12.2
+BuildRequires:	python3-devel >= 1:3.6
+BuildRequires:	python3-greenlet-devel >= 1.1.0
+BuildRequires:	python3-greenlet-devel < 2
+BuildRequires:	python3-setuptools >= 1:24.2.0
 %if %{with tests}
 BuildRequires:	python3-coverage >= 4.0
-BuildRequires:	python3-dns
-BuildRequires:	python3-greenlet >= 0.4.15
+BuildRequires:	python3-dns >= 1.16.0
+#BuildRequires:	python3-dns < 2
+BuildRequires:	python3-greenlet >= 1.1.0
+BuildRequires:	python3-greenlet < 2
+BuildRequires:  python3-idna
 BuildRequires:  python3-objgraph
-BuildRequires:  python3-psutil
+BuildRequires:  python3-psutil >= 5.7.0
 BuildRequires:  python3-requests
-BuildRequires:	python3-setuptools >= 1:24.2.0
 BuildRequires:	python3-test
 BuildRequires:	python3-zope.event
 BuildRequires:	python3-zope.interface
@@ -77,7 +86,7 @@ BuildRequires:	python3-sphinxcontrib-programoutput
 BuildRequires:	sphinx-pdg-3
 %endif
 %{?with_system_libev:Requires:	libev >= 4.23}
-Requires:	python-greenlet >= 0.4.15
+Requires:	python-greenlet >= 1.1.0
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -107,7 +116,7 @@ Summary:	A coroutine-based Python 3 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 3 oparta na korutynach
 Group:		Libraries/Python
 %{?with_system_libev:Requires:	libev >= 4.23}
-Requires:	python-greenlet >= 0.4.15
+Requires:	python-greenlet >= 1.1.0
 
 %description -n python3-%{module}
 gevent is a coroutine-based Python networking library. Features
@@ -144,7 +153,8 @@ Dokumentacja API modułu Pythona gevent.
 
 %prep
 %setup -q -n %{module}-%{version}
-#%patch0 -p1
+%patch0 -p1
+#%patch1 -p1
 
 find . -type f -name '*.orig' | xargs -r %{__rm}
 
@@ -255,5 +265,5 @@ rm -rf $RPM_BUILD_ROOT
 %if %{with doc}
 %files apidocs
 %defattr(644,root,root,755)
-%doc docs/_build/html/{_modules,_static,api,examples,*.html,*.js}
+%doc docs/_build/html/{_modules,_static,api,development,examples,*.html,*.js}
 %endif

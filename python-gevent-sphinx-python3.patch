@@ -1,0 +1,11 @@
+--- gevent-21.12.0/docs/development/running_tests.rst.orig	2021-12-11 21:26:48.000000000 +0100
++++ gevent-21.12.0/docs/development/running_tests.rst	2022-03-24 12:20:48.951318657 +0100
+@@ -32,7 +32,7 @@ care of other gevent-specific quirks.
+ 
+ The test runner has a number of options:
+ 
+-.. command-output:: python -mgevent.tests --help
++.. command-output:: python3 -mgevent.tests --help
+ 
+ The simplest way to run all the tests is just to invoke the test
+ runner, typically from the root of the source checkout::
