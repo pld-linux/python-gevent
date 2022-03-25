@@ -19,7 +19,7 @@ Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
 Version:	21.12.0
-Release:	2
+Release:	3
 Epoch:		1
 License:	MIT
 Group:		Libraries/Python
