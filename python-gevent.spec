@@ -19,7 +19,7 @@ Summary:	A coroutine-based Python 2 networking library
 Summary(pl.UTF-8):	Biblioteka sieciowa dla Pythona 2 oparta na korutynach
 Name:		python-%{module}
 Version:	21.12.0
-Release:	7
+Release:	8
 Epoch:		1
 License:	MIT
 Group:		Libraries/Python
@@ -29,6 +29,7 @@ Source0:	https://files.pythonhosted.org/packages/source/g/gevent/%{module}-%{ver
 Patch0:		%{name}-sphinx-python3.patch
 Patch1:		known_failures-pld.patch
 Patch2:		not-final.patch
+Patch3:		32bit.patch
 URL:		http://www.gevent.org/
 %{?with_system_c_ares:BuildRequires:	c-ares-devel >= 1.10.0}
 %{?with_system_libev:BuildRequires:	libev-devel >= 4.23}
@@ -157,6 +158,9 @@ Dokumentacja API modułu Pythona gevent.
 %patch -P 0 -p1
 #%%patch -P 1 -p1
 %patch -P 2 -p1
+cd deps/libuv
+%patch -P 3 -p1
+cd ../..
 
 find . -type f -name '*.orig' | xargs -r %{__rm}
 
